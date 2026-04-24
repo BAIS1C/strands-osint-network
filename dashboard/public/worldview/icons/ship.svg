@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Top-down ship silhouette, bow points +Y (north / 0 deg). -->
+  <defs>
+    <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9FE9D4"/>
+      <stop offset="0.55" stop-color="#64F0C8"/>
+      <stop offset="1" stop-color="#2F9B80"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="0.8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Wake chevron -->
+  <path d="M 12 24 L 16 30 L 20 24 Z" fill="#64F0C8" opacity="0.18"/>
+  <!-- Hull: pointed bow, square stern -->
+  <path d="M 16 2 L 22 10 L 22 26 L 10 26 L 10 10 Z"
+        fill="url(#hull)" stroke="#0B1E19" stroke-width="0.8" filter="url(#glow)"/>
+  <!-- Superstructure -->
+  <rect x="13" y="13" width="6" height="8" fill="#0B1E19" opacity="0.55"/>
+  <rect x="14" y="15" width="4" height="4" fill="#CDFCEB" opacity="0.7"/>
+  <!-- Bow highlight -->
+  <path d="M 16 3 L 20 9 L 16 7 L 12 9 Z" fill="#F0FFF9" opacity="0.35"/>
+</svg>

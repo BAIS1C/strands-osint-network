@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>S.O.N · Strands OSINT Network</title>
+
+<!-- Cesium -->
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
+
+<!-- Variant D theme -->
+<link rel="stylesheet" href="/theme/variant-d.css">
+
+<style>
+/* Worldview-specific layout on top of Variant D */
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+body {
+  display: grid;
+  grid-template-rows: 30px 1fr 44px;
+  grid-template-columns: 280px 1fr 340px;
+  grid-template-areas: "menu menu menu" "layers map chat" "timeline timeline timeline";
+  transition: grid-template-columns 220ms ease;
+}
+body.layers-collapsed { grid-template-columns: 32px 1fr 340px; }
+body.chat-collapsed   { grid-template-columns: 280px 1fr 32px; }
+body.layers-collapsed.chat-collapsed { grid-template-columns: 32px 1fr 32px; }
+
+/* Collapsed rail styling */
+body.layers-collapsed #layers .layers-body,
+body.layers-collapsed #layers .layers-head .t,
+body.layers-collapsed #layers .layers-head .s { display: none; }
+body.layers-collapsed #layers .layers-head { padding: 8px 4px; }
+body.layers-collapsed #layers { align-items: center; }
+
+body.chat-collapsed #chat .chat-log,
+body.chat-collapsed #chat .chat-input,
+body.chat-collapsed #chat .chat-title small,
+body.chat-collapsed #chat .chat-title { display: none; }
+body.chat-collapsed #chat .chat-head { padding: 8px 4px; justify-content: center; }
+
+.collapse-btn {
+  cursor: pointer; user-select: none;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  color: var(--muted); font-family: var(--ff-mono); font-size: 11px;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--sunken);
+  transition: color 120ms, border-color 120ms;
+}
+.collapse-btn:hover { color: var(--ink); border-color: var(--action); }
+
+#menu     { grid-area: menu; }
+#layers   { grid-area: layers; border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+#map      { grid-area: map; position: relative; background: #000; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+#chat     { grid-area: chat; border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+#timeline { grid-area: timeline; }
+
+/* Sidebar scrollability — ensure nothing is trapped behind the taskbar */
+#layers .layers-body { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+#chat .chat-log { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+#layers .layers-body::-webkit-scrollbar,
+#chat .chat-log::-webkit-scrollbar { width: 6px; }
+#layers .layers-body::-webkit-scrollbar-thumb,
+#chat .chat-log::-webkit-scrollbar-thumb { background: rgba(100,240,200,0.2); border-radius: 3px; }
+#layers .layers-body::-webkit-scrollbar-thumb:hover,
+#chat .chat-log::-webkit-scrollbar-thumb:hover { background: rgba(100,240,200,0.4); }
+
+/* === Three-band center column (pinch + frame) === */
+/* Globe pinched to the middle band; top + bottom bands host feed/data columns */
+#map .band-top, #map .band-bot {
+  flex: 0 0 auto;
+  height: 26vh;              /* roughly a quarter of viewport each */
+  min-height: 180px;
+  max-height: 320px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 6px;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+#map .band-bot { border-bottom: none; border-top: 1px solid var(--line); }
+#map .band-mid {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 280px;
+  overflow: hidden;
+}
+
+.band-col {
+  display: flex; flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  min-width: 0;
+}
+.band-col-head {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--ff-mono); font-size: 9.5px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.band-col-head:hover { color: var(--ink); }
+.band-col-head .bc-t { color: var(--ink); font-weight: 500; }
+.band-col-head .bc-n {
+  font-size: 9px; color: var(--action);
+  padding: 0 5px; border: 1px solid var(--line); border-radius: 2px;
+}
+.band-col-head .bc-caret { color: var(--muted); font-size: 10px; }
+.band-col-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 8px;
+  font-family: var(--ff-sans); font-size: 11px;
+  scrollbar-width: thin;
+}
+.band-col.collapsed .band-col-body { display: none; }
+.band-col.collapsed { flex: 0 0 auto; height: auto; }
+
+/* Band feed-item styling — compact version of view-body items */
+.band-col-body .feed-item {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex; gap: 6px; align-items: flex-start;
+}
+.band-col-body .feed-item:last-child { border-bottom: none; }
+.band-col-body .feed-item .fi-thumb {
+  flex: 0 0 auto; width: 38px; height: 38px;
+  background: var(--sunken); border: 1px solid var(--line);
+  border-radius: 3px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ff-mono); font-size: 8px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.band-col-body .feed-item .fi-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.band-col-body .feed-item .fi-col { flex: 1; min-width: 0; }
+.band-col-body .feed-item .fi-title {
+  color: var(--ink); font-size: 11px; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; text-decoration: none;
+}
+.band-col-body .feed-item a.fi-title:hover { color: var(--action); }
+.band-col-body .feed-item .fi-meta {
+  color: var(--muted); font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px;
+}
+.band-col-body .cam-grid-mini {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+}
+.band-col-body .cam-card-mini {
+  background: var(--sunken); border: 1px solid var(--line);
+  border-radius: 3px; overflow: hidden; cursor: pointer;
+  transition: border-color 120ms;
+}
+.band-col-body .cam-card-mini:hover { border-color: var(--action); }
+.band-col-body .cam-card-mini .cam-thumb-mini {
+  width: 100%; aspect-ratio: 16/9;
+  background: #000; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.band-col-body .cam-card-mini .cam-name-mini {
+  padding: 3px 5px; color: var(--ink);
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.band-col-body .kv {
+  display: flex; justify-content: space-between; gap: 6px;
+  padding: 3px 0; font-family: var(--ff-mono); font-size: 10px;
+  border-bottom: 1px dashed rgba(255,255,255,0.04);
+}
+.band-col-body .kv:last-child { border-bottom: none; }
+.band-col-body .kv .k { color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.band-col-body .kv .v { color: var(--ink); }
+.band-col-body .kv .v.up   { color: #64F0C8; }
+.band-col-body .kv .v.down { color: #D4593C; }
+
+/* Cesium viewer host */
+#cesiumContainer { position: absolute; inset: 0; }
+#cesiumContainer .cesium-viewer-bottom,
+#cesiumContainer .cesium-viewer-toolbar,
+#cesiumContainer .cesium-viewer-animationContainer,
+#cesiumContainer .cesium-viewer-timelineContainer,
+#cesiumContainer .cesium-viewer-fullscreenContainer {
+  display: none !important;
+}
+
+/* Map overlay chrome */
+.map-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+}
+.map-overlay > * { pointer-events: auto; }
+
+.map-top-right {
+  top: 12px; right: 12px;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+}
+.map-top-left {
+  top: 12px; left: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.map-bottom-left {
+  left: 16px; bottom: 16px;
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted); line-height: 1.9;
+  pointer-events: none;
+}
+.map-bottom-left b { color: var(--action); font-weight: 500; }
+.map-bottom-right { right: 16px; bottom: 16px; }
+
+/* Inspector popup for clicked entity */
+.inspector {
+  position: absolute; z-index: 20;
+  width: 340px; max-height: 440px; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  display: none;
+}
+.inspector.show { display: block; }
+.inspector .panel-head { cursor: move; position: sticky; top: 0; background: var(--panel); z-index: 2; border-bottom: 1px solid var(--line); }
+.inspector .close, .view-panel .close {
+  cursor: pointer; color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  font-size: 20px; font-weight: 300; line-height: 1;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.inspector .close:hover, .view-panel .close:hover {
+  color: var(--ink); border-color: var(--action);
+  background: rgba(100,240,200,0.08);
+}
+.inspector-body { padding: 12px; font-size: 12px; }
+.inspector-body h4 { font-weight: 600; font-size: 14px; margin-bottom: 8px; color: var(--ink); letter-spacing: 0.04em; }
+
+/* Inspector media (favicon + OG thumbnail) for RSS/news/social items */
+.insp-media {
+  display: flex; gap: 8px; align-items: center;
+  margin-bottom: 10px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.insp-media .insp-favicon {
+  width: 24px; height: 24px; border-radius: 3px;
+  background: var(--sunken); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; flex-shrink: 0;
+}
+.insp-media .insp-favicon img { width: 100%; height: 100%; object-fit: contain; }
+.insp-media .insp-source {
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--action);
+}
+.insp-media .insp-domain { color: var(--muted); font-size: 9px; }
+.insp-thumb {
+  width: 100%; aspect-ratio: 16/9;
+  background: var(--sunken); border: 1px solid var(--line);
+  border-radius: 4px; overflow: hidden; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-family: var(--ff-mono); font-size: 10px;
+}
+.insp-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.insp-iframe-wrap {
+  width: 100%; aspect-ratio: 16/10;
+  background: #000; border: 1px solid var(--line);
+  border-radius: 4px; overflow: hidden; margin-bottom: 10px;
+  position: relative;
+}
+.insp-iframe-wrap iframe {
+  width: 100%; height: 100%; border: 0; display: block;
+}
+.insp-iframe-wrap .insp-iframe-fail {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--sunken);
+}
+.insp-open-ext {
+  display: inline-block; padding: 4px 8px;
+  font-family: var(--ff-mono); font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--action); border: 1px solid var(--line);
+  border-radius: 3px; text-decoration: none;
+  margin-top: 6px;
+}
+.insp-open-ext:hover { border-color: var(--action); }
+
+/* Layers header */
+.layers-head {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.layers-head .t {
+  font-weight: 600; font-size: 12px;
+  color: var(--ink); letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.layers-head .s {
+  font-family: var(--ff-mono); font-size: 9px; color: var(--muted);
+  letter-spacing: 0.16em; text-transform: uppercase; margin-top: 2px;
+}
+.layers-body {
+  flex: 1; overflow-y: auto;
+  padding: var(--s-3);
+  display: flex; flex-direction: column; gap: var(--s-3);
+}
+.layers-section h5 {
+  font-family: var(--ff-mono); font-size: 9px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px; padding: 0 2px;
+}
+
+/* Layer-color legend chip */
+.legend-strip {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 6px 8px; margin-bottom: 8px;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--sunken);
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--dim);
+}
+.legend-strip .lg-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 2px; vertical-align: middle; margin-right: 4px;
+}
+.legend-strip .lg-dot.kinetic { background: #D4593C; box-shadow: 0 0 4px rgba(212, 89, 60, 0.5); }
+.legend-strip .lg-dot.passive { background: #64F0C8; box-shadow: 0 0 4px rgba(100, 240, 200, 0.5); }
+.legend-strip .lg-item { display: inline-flex; align-items: center; gap: 0; }
+
+/* Region presets */
+.regions { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.regions .btn { padding: 6px 8px; font-size: 10px; letter-spacing: 0.06em; }
+
+/* Dock tab view panel — legacy popup inspector (still used for some dock actions) */
+.view-panel {
+  position: absolute; z-index: 18;
+  top: 14px; left: 14px;
+  width: 440px; max-height: calc(100% - 28px);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.view-panel.show { display: flex; }
+.view-body { padding: 12px 14px; overflow-y: auto; font-size: 12px; font-family: var(--ff-sans); }
+.view-body h5 {
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted); margin: 10px 0 6px; padding: 0 2px;
+}
+.view-body h5:first-child { margin-top: 0; }
+.view-body .empty { color: var(--muted); font-style: italic; padding: 10px 0; }
+.view-panel.feed-mode { width: 520px; }
+
+.dock-icon.active { color: var(--action); background: rgba(100, 240, 200, 0.06); }
+
+/* Pull Live button — forces an immediate OSINT sweep */
+.pull-live-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px;
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: #0B1E19;
+  background: var(--action);
+  border: 1px solid var(--action);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background 140ms, transform 80ms, box-shadow 140ms;
+  box-shadow: 0 0 0 rgba(100, 240, 200, 0);
+}
+.pull-live-btn:hover {
+  background: #8FF5D6;
+  box-shadow: 0 0 14px rgba(100, 240, 200, 0.5);
+}
+.pull-live-btn:active { transform: scale(0.97); }
+.pull-live-btn.pulling {
+  background: var(--sunken); color: var(--action);
+  border-color: var(--action);
+  pointer-events: none;
+}
+.pull-live-btn .pl-pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #0B1E19;
+}
+.pull-live-btn.pulling .pl-pulse {
+  background: var(--action);
+  animation: plPulse 0.9s ease-in-out infinite;
+}
+@keyframes plPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(1.4); }
+}
+
+/* Pull Region — same shape, different accent (seal red to signal geo-scoped kinetic action) */
+.pull-region-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px;
+  font-family: var(--ff-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: #FDE8E2;
+  background: rgba(212, 89, 60, 0.18);
+  border: 1px solid rgba(212, 89, 60, 0.6);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background 140ms, transform 80ms, box-shadow 140ms, border-color 140ms;
+}
+.pull-region-btn:hover {
+  background: rgba(212, 89, 60, 0.32);
+  border-color: #D4593C;
+  box-shadow: 0 0 14px rgba(212, 89, 60, 0.35);
+}
+.pull-region-btn:active { transform: scale(0.97); }
+.pull-region-btn .pl-pulse { background: #D4593C; }
+.pull-region-btn.pulling {
+  background: rgba(212, 89, 60, 0.32);
+  pointer-events: none;
+}
+.pull-region-btn.pulling .pl-pulse { animation: plPulse 0.9s ease-in-out infinite; }
+
+/* Timeline speed clarification — now labeled as "TIME SCRUB" */
+.timeline-bar .tl-scrub-label {
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted); margin-right: 6px;
+  white-space: nowrap;
+}
+
+/* 3D / 2D / Columbus View mode pill */
+.mode-pill {
+  display: inline-flex; align-items: center;
+  background: var(--sunken); border: 1px solid var(--line);
+  border-radius: var(--r-sm); overflow: hidden;
+  font-family: var(--ff-mono); font-size: 10px; letter-spacing: 0.14em;
+}
+.mode-pill .mp-opt {
+  padding: 5px 9px; cursor: pointer; color: var(--muted);
+  border-right: 1px solid var(--line);
+  transition: color 120ms, background 120ms;
+}
+.mode-pill .mp-opt:last-child { border-right: none; }
+.mode-pill .mp-opt:hover { color: var(--ink); }
+.mode-pill .mp-opt.on { color: var(--action); background: rgba(100, 240, 200, 0.08); }
+
+/* Status chip strip */
+.status-strip {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--sunken);
+}
+.chip {
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--dim);
+}
+.chip b { color: var(--action); font-weight: 500; }
+
+/* Chat title with LM Studio online/offline indicator */
+.chat-title {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 0;
+}
+.chat-title .lm-state {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--ff-mono); font-size: 9px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 2px 6px; border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  transition: color 200ms, border-color 200ms, background 200ms;
+}
+.chat-title .lm-state .lm-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  transition: background 200ms, box-shadow 200ms;
+}
+.chat-title.lm-online {
+  color: #64F0C8;
+}
+.chat-title.lm-online .lm-state {
+  color: #64F0C8;
+  border-color: rgba(100, 240, 200, 0.4);
+  background: rgba(100, 240, 200, 0.08);
+}
+.chat-title.lm-online .lm-state .lm-dot {
+  background: #64F0C8;
+  box-shadow: 0 0 6px rgba(100, 240, 200, 0.7);
+}
+.chat-title.lm-offline {
+  color: #D4593C;
+}
+.chat-title.lm-offline .lm-state {
+  color: #FDE8E2;
+  border-color: rgba(212, 89, 60, 0.5);
+  background: rgba(212, 89, 60, 0.14);
+}
+.chat-title.lm-offline .lm-state .lm-dot {
+  background: #D4593C;
+  box-shadow: 0 0 6px rgba(212, 89, 60, 0.7);
+}
+.chat-title .ct-label { font-weight: 600; letter-spacing: 0.14em; }
+.chat-title small { color: var(--muted); font-weight: 400; letter-spacing: 0.1em; }
+
+/* Dock icon label - drop CJK glyph, render crisp Latin short code instead */
+.dock-icon {
+  font-family: var(--ff-mono) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.dock-icon .en {
+  font-size: 8px;
+  display: block;
+  margin-top: 2px;
+  letter-spacing: 0.1em;
+  color: inherit;
+}
+
+/* Hanko watermark in bottom-right — text-only now */
+.hanko {
+  font-family: var(--ff-mono); font-weight: 700;
+  font-size: 11px; letter-spacing: 0.22em;
+  color: rgba(100, 240, 200, 0.35);
+  padding: 6px 10px;
+  border: 1px solid rgba(100, 240, 200, 0.25);
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  user-select: none;
+}
+
+/* Panel titles — drop the .j (Japanese glyph) span */
+.panel-title .j { display: none !important; }
+.dl-k, .dl-v { font-family: var(--ff-mono); font-size: 10px; }
+
+</style>
+</head>
+<body>
+
+<!-- ============ MENUBAR ============ -->
+<div id="menu" class="menubar">
+  <div class="mb-left">
+    <span class="brand" style="font-family:var(--ff-mono);font-weight:700;letter-spacing:0.18em">S.O.N</span>
+    <span class="brand-en">STRANDS OSINT NETWORK</span>
+    <span id="status" class="live">Booting</span>
+  </div>
+  <div class="mb-right">
+    <span id="meta-sources" class="mono u-muted">—</span>
+    <span id="meta-clock" class="mono u-dim">—</span>
+    <span id="meta-model" class="mono u-action">LOCAL · QWEN</span>
+  </div>
+</div>
+
+<!-- ============ LAYERS PANEL ============ -->
+<aside id="layers">
+  <div class="layers-head" style="display:flex; align-items:center; justify-content:space-between; gap:6px">
+    <div>
+      <div class="t">Layers</div>
+      <div class="s">DATA LAYERS · TOGGLE</div>
+    </div>
+    <div class="collapse-btn" id="layers-collapse" title="Collapse layers">‹</div>
+  </div>
+  <div class="layers-body">
+
+    <div class="layers-section">
+      <h5>BASEMAP</h5>
+      <div class="radio-group" id="basemap-group">
+        <div class="radio-opt on" data-basemap="satellite">SAT</div>
+        <div class="radio-opt" data-basemap="osm">OSM</div>
+        <div class="radio-opt" data-basemap="dark">DARK</div>
+      </div>
+    </div>
+
+    <div class="layers-section">
+      <h5 style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+        <span>INTELLIGENCE LAYERS</span>
+        <button class="btn" id="layers-toggle-all"
+          style="padding:2px 7px;font-size:9px;letter-spacing:0.08em;line-height:1.4"
+          title="Toggle all intel layers on/off">ALL ◉</button>
+      </h5>
+      <div class="legend-strip">
+        <span class="lg-item"><span class="lg-dot kinetic"></span>KINETIC</span>
+        <span class="lg-item"><span class="lg-dot passive"></span>PASSIVE</span>
+      </div>
+      <div class="layers" id="layer-list">
+        <!-- populated by app.js -->
+      </div>
+    </div>
+
+    <div class="layers-section">
+      <h5>QUICK REGIONS</h5>
+      <div class="regions">
+        <button class="btn" data-region="hormuz">HORMUZ</button>
+        <button class="btn" data-region="iran">IRAN</button>
+        <button class="btn" data-region="taiwan">TAIWAN</button>
+        <button class="btn" data-region="ukraine">UKRAINE</button>
+        <button class="btn" data-region="suez">SUEZ</button>
+        <button class="btn" data-region="global">GLOBAL</button>
+      </div>
+    </div>
+
+    <div class="layers-section">
+      <h5>CURRENT POSTURE</h5>
+      <div class="status-strip" id="posture-strip">
+        <span class="chip">DIR <b id="p-dir">—</b></span>
+        <span class="chip">Δ <b id="p-delta">—</b></span>
+        <span class="chip">VIX <b id="p-vix">—</b></span>
+        <span class="chip">BRENT <b id="p-brent">—</b></span>
+        <span class="chip">WTI <b id="p-wti">—</b></span>
+      </div>
+    </div>
+
+  </div>
+</aside>
+
+<!-- ============ MAP (three-band center column) ============ -->
+<main id="map">
+
+  <!-- TOP BAND — brief + live feed columns -->
+  <div class="band-top" id="band-top">
+    <div class="band-col" data-band="brief">
+      <div class="band-col-head">
+        <span class="bc-t">Brief</span>
+        <span><span class="bc-n" id="bc-brief-n">—</span> <span class="bc-caret">▾</span></span>
+      </div>
+      <div class="band-col-body" id="band-brief"></div>
+    </div>
+    <div class="band-col" data-band="news">
+      <div class="band-col-head">
+        <span class="bc-t">News</span>
+        <span><span class="bc-n" id="bc-news-n">0</span> <span class="bc-caret">▾</span></span>
+      </div>
+      <div class="band-col-body" id="band-news"></div>
+    </div>
+    <div class="band-col" data-band="x">
+      <div class="band-col-head">
+        <span class="bc-t">X.com (Twitter)</span>
+        <span><span class="bc-n" id="bc-x-n">0</span> <span class="bc-caret">▾</span></span>
+      </div>
+      <div class="band-col-body" id="band-x"></div>
+    </div>
+    <div class="band-col" data-band="bsky">
+      <div class="band-col-head">
+        <span class="bc-t">Bluesky</span>
+        <span><span class="bc-n" id="bc-bsky-n">0</span> <span class="bc-caret">▾</span></span>
+      </div>
+      <div class="band-col-body" id="band-bsky"></div>
+    </div>
+  </div>
+
+  <!-- MIDDLE BAND — Cesium globe -->
+  <div class="band-mid" id="band-mid">
+    <div id="cesiumContainer"></div>
+
+    <!-- Map chrome overlays -->
+    <div class="map-overlay map-top-right">
+      <div class="panel" style="width: 220px">
+        <div class="panel-head">
+          <div class="panel-title">View</div>
+        </div>
+        <div class="panel-body" style="padding: 8px;">
+          <div class="dl">
+            <div class="dl-row"><div class="dl-k">Mode</div><div class="dl-v" id="view-mode">3D Globe</div></div>
+            <div class="dl-row"><div class="dl-k">Lat</div><div class="dl-v" id="view-lat">0.00</div></div>
+            <div class="dl-row"><div class="dl-k">Lon</div><div class="dl-v" id="view-lon">0.00</div></div>
+            <div class="dl-row"><div class="dl-k">Alt</div><div class="dl-v" id="view-alt">—</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="map-overlay map-top-left">
+      <button class="btn btn-ico" id="btn-home" title="Reset view">⌂</button>
+      <button class="btn btn-ico" id="btn-fullscreen" title="Toggle fullscreen (F11 equivalent)">⛶</button>
+      <div class="mode-pill" id="mode-pill" title="Switch projection">
+        <span class="mp-opt on" data-mode="3d">3D</span>
+        <span class="mp-opt"    data-mode="2d">2D</span>
+        <span class="mp-opt"    data-mode="cv">CV</span>
+      </div>
+      <button class="btn pull-live-btn" id="btn-pull-live" title="Force immediate refresh of all OSINT sources (bypasses polling)">
+        <span class="pl-pulse"></span>PULL LIVE
+      </button>
+      <button class="btn pull-region-btn" id="btn-pull-region"
+        title="Pull news / social / AIS / ADS-B specific to the region currently visible on the map">
+        <span class="pl-pulse"></span>PULL REGION
+      </button>
+    </div>
+
+    <div class="map-overlay map-bottom-left">
+      LOCAL NODE · <b id="sig-sources">— SOURCES</b><br>
+      <b id="sig-model">QWEN 3.5</b> · <b id="sig-peers">1 PEER</b>
+    </div>
+
+    <div class="map-overlay map-bottom-right">
+      <div class="hanko" id="hanko">S.O.N</div>
+    </div>
+
+    <!-- Inspector popup -->
+    <div class="inspector" id="inspector">
+      <div class="panel-head">
+        <div class="panel-title"><span id="insp-title">Inspector</span></div>
+        <span class="close" id="insp-close">×</span>
+      </div>
+      <div class="inspector-body" id="insp-body"></div>
+    </div>
+
+    <!-- Legacy dock-tab view panel (kept for BRIEF) -->
+    <div class="view-panel" id="view-panel">
+      <div class="panel-head">
+        <div class="panel-title"><span id="view-title">Briefing</span></div>
+        <span class="close" id="view-close">×</span>
+      </div>
+      <div class="view-body" id="view-body"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAND — markets + sats + alerts + cctv -->
+  <div class="band-bot" id="band-bot">
+    <div class="band-col" data-band="markets">
+      <div class="band-col-head">
+        <span class="bc-t">Markets</span>
+        <span><span class="bc-n" id="bc-mkt-n">—</span> <span class="bc-caret">▾</span></span>
+      </div>
+      <div class="band-col-body" id="band-markets"></div>
+    </div>
+    <div class="band-col" data-band="sats">
+      <div class="band-col-head">
+        <span class="bc-t">Satellites</span>
+        <span><span class="bc-n" id="bc-sat-n">0</span> <span class="bc-caret">▾</span></span>
+      </div>
+      <div class="band-col-body" id="band-sats"></div>
+    </div>
+    <div class="band-col" data-band="alerts">
+      <div class="band-col-head">
+        <span class="bc-t">Alerts</span>
+        <span><span class="bc-n" id="bc-alt-n">0</span> <span class="bc-caret">▾</span></span>
+      </div>
+      <div class="band-col-body" id="band-alerts"></div>
+    </div>
+    <div class="band-col" data-band="cam">
+      <div class="band-col-head">
+        <span class="bc-t">CCTV</span>
+        <span><span class="bc-n" id="bc-cam-n">0</span> <span class="bc-caret">▾</span></span>
+      </div>
+      <div class="band-col-body" id="band-cam"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ============ CHAT SIDEBAR ============ -->
+<aside id="chat" class="chat">
+  <div class="chat-head">
+    <div class="collapse-btn" id="chat-collapse" title="Collapse chat">›</div>
+    <div class="chat-title" id="chat-title">
+      <span class="ct-label">CONSIGLIERE</span>
+      <span class="lm-state" id="lm-state" title="LM Studio connection status">
+        <span class="lm-dot"></span><span id="lm-state-text">CHECKING</span>
+      </span>
+      <small>LM STUDIO</small>
+    </div>
+    <button class="btn btn-ico" id="chat-clear" title="Clear">⊘</button>
+  </div>
+  <div class="chat-log" id="chat-log">
+    <div class="chat-msg assistant">
+      <div class="who">CONSIGLIERE</div>
+      <div class="body">
+        S.O.N online. I can toggle layers, focus the map, query any of the 29 OSINT sources, pull market snapshots, and compute satellite passes. Try: <em>"what's happening in Hormuz"</em>, <em>"show me military aircraft over the Gulf"</em>, <em>"is Brent about to move"</em>.
+      </div>
+    </div>
+  </div>
+  <div class="chat-input">
+    <textarea id="chat-text" placeholder="Ask anything. The LLM sees your map." rows="1"></textarea>
+    <button class="btn pri" id="chat-send">SEND</button>
+  </div>
+</aside>
+
+<!-- ============ TIMELINE ============ -->
+<div id="timeline" class="timeline-bar">
+  <button class="timeline-rec" id="tl-rec" aria-label="Record director brief" title="REC: start a director brief">●</button>
+  <div class="timeline-track" id="tl-track">
+    <div class="timeline-fill" id="tl-fill" style="width: 50%"></div>
+  </div>
+  <div class="timeline-label" id="tl-label">— · LIVE</div>
+  <span class="tl-scrub-label" title="Time-scrubs satellite passes and time-sensitive layers; does not change globe rotation">TIME SCRUB</span>
+  <div class="timeline-speed" id="tl-speed" title="Time scrub speed — 1× = real time, 1m/s = 1 minute per second">
+    <span data-speed="1" class="on">1×</span>
+    <span data-speed="60">1m/s</span>
+    <span data-speed="900">15m/s</span>
+    <span data-speed="3600">1h/s</span>
+  </div>
+</div>
+
+<!-- Application modules -->
+<script type="module" src="/worldview/app.js"></script>
+
+</body>
+</html>
