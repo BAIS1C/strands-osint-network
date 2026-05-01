@@ -7,9 +7,10 @@
 *An operator-grade god's-eye terminal for open-source intelligence. Twenty-nine feeds, one globe, your machine.*
 
 [![Node.js 22+](https://img.shields.io/badge/node-22%2B-brightgreen)](#quick-start)
-[![License: AGPL v3](https://img.shields.io/badge/license-AGPLv3-blue.svg)](LICENSE)
+[![License: PolyForm-NC](https://img.shields.io/badge/license-PolyForm--NC--1.0.0-orange.svg)](LICENSE)
 [![OSINT sources](https://img.shields.io/badge/OSINT%20sources-29-cyan)](#data-sources)
 [![LM Studio](https://img.shields.io/badge/LLM-LM%20Studio%20local-purple)](#lm-studio-integration)
+[![3D Tiles](https://img.shields.io/badge/globe-Google%203D%20Tiles-blue)](#globe-rendering)
 [![Docker](https://img.shields.io/badge/docker-ready-blue?logo=docker)](#docker)
 
 </div>
@@ -33,23 +34,63 @@ S.O.N pulls twenty-nine open-source intelligence feeds in parallel every fifteen
 Hook it up to a local LLM via **LM Studio** and it becomes a two-way intelligence partner. A Consigliere that sees your map, toggles layers for you, queries any source, pulls market snapshots, computes satellite passes, and pushes multi-tier alerts to Telegram or Discord when something meaningful changes.
 
 - **Local-first.** The full intelligence loop runs on your machine. No cloud dependency for the core product. No telemetry.
-- **Open sources only.** The default stack is entirely keyless or freely-keyed. No paid feeds required to operate.
+- **Open sources where possible.** Most adapters are keyless or freely-keyed. A few optional layers (Google 3D Tiles, ADS-B Exchange, traffic) use free tiers from commercial APIs; the system degrades gracefully without them.
 - **One operator, full control.** No shared ops layer, no SaaS sign-in, no per-seat pricing.
 - **Embed-safe.** CCTV, news, and social links open without third-party frame blocks wherever the source permits.
+
+---
+
+## Recent Updates
+
+**2026-05-01 sprint** — visual upgrade plus layer fixes plus architecture scaffolding:
+
+- **Globe upgrade.** Optional Google Photorealistic 3D Tiles with graceful fallback to ESRI imagery on a flat ellipsoid when no key is set. Buildings render as actual 3D geometry where Google has coverage.
+- **Shader presets.** Number keys cycle four post-process modes: `1` NVG (night vision green), `2` FLIR (thermal LUT), `3` CRT (scanlines + chromatic aberration + optional pixelation), `4` OPS (Strands tactical, Hanko-red criticality), `0` clean. CRT pixelation level is `+`/`-` cycled while CRT is active.
+- **AIR layer fix.** OpenSky raw state vectors preserved through the sweep. Up to 600 commercial flights now render globally, click-to-track, no key required.
+- **SAT layer fix.** TLE pairs preserved from CelesTrak. ISS, space stations, and recent launches render with animated propagated orbits.
+- **Plane icons.** Civilian and military aircraft now render as oriented SVG silhouettes rotated by their heading, not flat dots.
+- **Auto-collapse plus hover-expand.** Sidebars and bands fold after 10s of no interaction, restore on hover. Manual chevron clicks lock state.
+- **Honest sweep telemetry.** Per-source verbose logging during sweep with four health states: ok / key-gated / degraded / failed. Replaces the misleading "29/29 sources returned data" line.
+- **CCTV inspector merge fix.** Cards opened from the feed panel route through the inline media branch correctly.
+- **RSS Atom plus GUID parser.** Reuters, Bloomberg, and Atom-based publishers now produce clickable cards.
+- **LM Studio bug fix.** Duplicate `ping()` method removed; OFFLINE state reports correctly.
+- **FRED + EIA discontinued** — both providers no longer offer free API keys; adapters disabled in the briefing.
+
+See [`STATUS_2026-04-30_NIGHT.md`](./STATUS_2026-04-30_NIGHT.md) for the full sprint report and [`RECON_SPRINT_ARCHITECTURE_2026-04-30.md`](./RECON_SPRINT_ARCHITECTURE_2026-04-30.md) for what is coming next.
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/YOUR_ORG/strands-osint-network.git son
+git clone https://github.com/BAIS1C/strands-osint-network.git son
 cd son
 npm install
-cp .env.example .env          # optional keys: FRED, EIA, BLS, ACLED, FIRMS, AISSTREAM
+cp .env.example .env          # add the keys you want; system runs fine without them
 node server.mjs
 ```
 
 Dashboard opens at `http://localhost:3117`. First sweep runs on boot, subsequent sweeps every fifteen minutes (configurable in `son.config.mjs`).
+
+Optional API keys (all degrade gracefully if absent):
+
+| Key | What it unlocks | Free tier |
+|---|---|---|
+| `GOOGLE_MAPS_API_KEY` | Google Photorealistic 3D Tiles globe | yes (Map Tiles API on console.cloud.google.com) |
+| `ADSB_API_KEY` | MIL layer (military aircraft) | yes (rapidapi.com/adsbx/api/adsbexchange-com1) |
+| `AISSTREAM_API_KEY` | SEA layer real-time vessels | yes (aisstream.io) |
+| `FIRMS_MAP_KEY` | HOT layer (NASA thermal anomalies) | yes (firms.modaps.eosdis.nasa.gov) |
+| `ACLED_EMAIL`+`ACLED_PASSWORD` | WAR layer (conflict events) | yes (acleddata.com, academic registration) |
+| `BLS_API_KEY` | Macro-economic series | yes (bls.gov) |
+| `RELIEFWEB_APPNAME` | ReliefWeb humanitarian reports | yes (registration required) |
+| `OPENSANCTIONS_API_KEY` | OpenSanctions | yes (data.opensanctions.org) |
+| `REDDIT_CLIENT_ID`+`SECRET` | Reddit OSINT | yes (OAuth, free) |
+| `YOUTUBE_API_KEY` | Live news TV streams (Al Jazeera, CNBC, etc) | yes (10k units/day) |
+| `EVENTBRITE_TOKEN` | Event tracker (festivals, concerts) | yes |
+| `SONGKICK_API_KEY` | Concert listings | yes |
+| `HERE_API_KEY` | Live road traffic (RECON corridor) | yes (250k tx/month) |
+| `TELEGRAM_BOT_TOKEN`+`CHAT_ID` | Telegram alerts plus bot commands | n/a |
+| `DISCORD_BOT_TOKEN`+`CHANNEL_ID` | Discord alerts plus slash commands | n/a |
 
 ---
 
@@ -171,26 +212,61 @@ Single-binary dev server. One npm dependency at runtime (`express`). Determinist
 
 ### Key-gated (free tier, you register)
 
-| Source | Env var | Free tier |
+| Source | Env var | Free tier | Notes |
+|---|---|---|---|
+| BLS (labour) | `BLS_API_KEY` | yes | macro time series |
+| ACLED (conflict events) | `ACLED_EMAIL`+`ACLED_PASSWORD` | yes (academic) | OAuth2 password grant |
+| NASA FIRMS (thermal) | `FIRMS_MAP_KEY` | yes | global fire detection |
+| AISStream (live vessels) | `AISSTREAM_API_KEY` | yes | persistent WebSocket |
+| OpenSanctions | `OPENSANCTIONS_API_KEY` | yes | data.opensanctions.org |
+| Reddit | `REDDIT_CLIENT_ID/SECRET` | OAuth, free | |
+| ReliefWeb v2 | `RELIEFWEB_APPNAME` (approved) | free | registration required |
+| YouTube Live News | `YOUTUBE_API_KEY` | yes | 10k units/day |
+| ADS-B Exchange | `ADSB_API_KEY` | yes (RapidAPI) | military aircraft |
+| Eventbrite | `EVENTBRITE_TOKEN` | yes | festivals, gigs |
+| Songkick | `SONGKICK_API_KEY` | yes | concert listings |
+
+### Discontinued
+
+| Source | Reason | Replacement |
 |---|---|---|
-| FRED (St. Louis Fed) | `FRED_API_KEY` | yes |
-| EIA (energy) | `EIA_API_KEY` | yes |
-| BLS (labour) | `BLS_API_KEY` | yes |
-| ACLED (conflict events) | `ACLED_KEY` | yes (register for academic) |
-| NASA FIRMS (thermal) | `FIRMS_MAP_KEY` | yes |
-| AISStream (live vessels) | `AISSTREAM_API_KEY` | yes |
-| OpenSanctions | `OPENSANCTIONS_API_KEY` | yes (data.opensanctions.org) |
-| Reddit | `REDDIT_CLIENT_ID/SECRET` | OAuth, free |
-| ReliefWeb v2 | `RELIEFWEB_APPNAME` (approved) | free, registration required |
+| FRED (St. Louis Fed) | Free API access discontinued by provider 2026-04 | Treasury adapter still covers debt/yield curve |
+| EIA (energy data) | Free API access discontinued by provider 2026-04 | YFinance now provides live BRENT/WTI/NatGas via market quotes |
 
 ### Optional adapters
 
-- **Bluesky** — public AT Proto search.
+- **Bluesky** — public AT Protocol search (currently degraded; authenticated adapter scaffolded in `apis/sources/bluesky_auth.mjs`).
 - **Telegram public channels** — optional, either bot mode or scrape.
 - **KiwiSDR** — shortwave intelligence receivers.
 - **Patents** — USPTO public endpoints.
+- **X (Twitter)** — Playwright-based authenticated burner adapter scaffolded in `apis/sources/x_browser.mjs`. See [`X_BROWSER_ARCHITECTURE_2026-05-01.md`](./X_BROWSER_ARCHITECTURE_2026-05-01.md) for activation.
 
-See [`apis/sources/`](apis/sources) for each adapter and [`SOURCE_QA_MATRIX`](docs/SOURCE_QA.md) for live status.
+See [`apis/sources/`](apis/sources) for each adapter and [`LAYER_AUDIT_2026-04-24.md`](./LAYER_AUDIT_2026-04-24.md) for the per-layer status matrix.
+
+---
+
+## Globe Rendering
+
+S.O.N renders on Cesium 1.124. Two basemap modes:
+
+- **Photorealistic 3D Tiles** — when `GOOGLE_MAPS_API_KEY` is set in `.env`, the globe loads Google's Map Tiles API and you get real building geometry, terrain, and texture at city zoom. Free tier on Google Cloud Console covers personal beta. Falls back gracefully if the key is absent or the request fails.
+- **Flat ellipsoid + ESRI imagery** — the default when no Google key is set. ESRI World Imagery, CARTO Voyager (English-labelled OSM), or CARTO Dark.
+
+The globe morphs between 3D Globe, 2D Flat, and Columbus View modes. When 3D Tiles are loaded, switching to 2D or CV automatically hides the tileset and re-shows the basemap to avoid mesh-projection ghosting.
+
+### Shader presets
+
+Four post-process stages cycle on number keys when the map has focus:
+
+| Key | Mode | Effect |
+|---|---|---|
+| `0` | Clean | default |
+| `1` | NVG | green phosphor tint, gain noise, vignette |
+| `2` | FLIR | thermal LUT (cool blue → red → white-hot), edge enhancement |
+| `3` | CRT | scanlines, chromatic aberration, vignette, optional pixelation |
+| `4` | OPS | Strands tactical: desaturated, contrast-lifted, Hanko-red criticality bias |
+
+While CRT is active, `+` and `-` cycle pixelation level 0 to 8 for authentic CCTV look.
 
 ---
 
@@ -233,10 +309,13 @@ Both flash a status pill when in flight and broadcast `sweep_trigger` on SSE so 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Status, uptime, source count, LLM reachability |
+| `GET` | `/api/config` | Public client config — Google Maps key for 3D Tiles, Cesium Ion token, key-presence flags |
 | `GET` | `/api/data` | Current synthesised dashboard payload |
-| `GET` | `/api/sse` | Server-sent event stream: `update`, `sweep_trigger`, `sweep_complete`, `sweep_error` |
+| `GET` | `/events` | Server-sent event stream: `update`, `sweep_trigger`, `sweep_complete`, `sweep_error` |
 | `POST` | `/api/sweep` | Manual sweep trigger, optional `?bbox=W,S,E,N` |
 | `POST` | `/api/chat` | Consigliere tool-use loop, OpenAI-compatible |
+| `GET` | `/api/ais/status` | Live AIS WebSocket connection status |
+| `GET` | `/api/proxy/gpsjam` | GPSJam daily H3-tiled jamming zones (proxied) |
 
 ---
 
@@ -309,7 +388,13 @@ The architecture is already split along these lines. See [`LAYER_U_ARCHITECTURE.
 
 ## Licence
 
-AGPL v3. See [LICENSE](./LICENSE).
+**PolyForm Noncommercial License 1.0.0.** See [LICENSE](./LICENSE).
+
+You may download, run, modify, and redistribute S.O.N for **non-commercial purposes only**: personal use, hobby projects, research, teaching, evaluation, and personal demonstrations. Internal business use by a company or for-profit organization is **not** permitted under this license, regardless of whether you charge money or not.
+
+For commercial use (including any internal business deployment), contact the licensor at `kasai@strandsnation.xyz` for a separate commercial license. Commercial licenses are negotiated case-by-case.
+
+This is a deliberate departure from the previous AGPL v3 licensing. The intent is to keep S.O.N freely available for individual operators, researchers, and Strands Nation Founders Pass holders, while preventing third parties from building competing OSINT-as-a-service products on top of the codebase without contributing back.
 
 ---
 
