@@ -102,6 +102,37 @@ function sanitizeExternalUrl(raw) {
   }
 }
 
+// Multi-format link extractor for RSS items. Handles:
+//   - Atom: <link rel="alternate" href="..."/>
+//   - RSS classic: <link>...</link> (with optional CDATA)
+//   - GUID permalink fallback: <guid isPermaLink="true">URL</guid>
+// Many modern feeds (Reuters, Bloomberg via Google News, Atom-based publishers)
+// were silently producing unclickable items because the previous parser only
+// matched the classic <link>...</link> form. Fix per RECON_SPRINT_ARCHITECTURE
+// 2026-04-30 Section 3.5.
+function extractItemLink(block) {
+  // Atom href attribute (must come first — many feeds are mixed and have a
+  // self-referential <link rel="self" href="..."/> we don't want, so prefer
+  // rel="alternate" or no rel at all)
+  const atomAlt = block.match(/<link\b[^>]*\brel=["']alternate["'][^>]*\bhref=["']([^"']+)["']/i);
+  if (atomAlt?.[1]) return atomAlt[1].trim();
+  const atomBare = block.match(/<link\b(?![^>]*\brel=["']self)[^>]*\bhref=["']([^"']+)["']/i);
+  if (atomBare?.[1]) return atomBare[1].trim();
+  // RSS classic
+  const rssClassic = block.match(/<link\b[^>]*>(?:<!\[CDATA\[)?([^<]+?)(?:\]\]>)?<\/link>/i);
+  if (rssClassic?.[1]) {
+    const candidate = rssClassic[1].trim();
+    if (candidate && /^https?:/i.test(candidate)) return candidate;
+  }
+  // GUID permalink fallback
+  const guid = block.match(/<guid\b[^>]*\bisPermaLink=["']true["'][^>]*>([^<]+)<\/guid>/i);
+  if (guid?.[1]) {
+    const candidate = guid[1].trim();
+    if (candidate && /^https?:/i.test(candidate)) return candidate;
+  }
+  return null;
+}
+
 // === RSS Fetching ===
 async function fetchRSS(url, source) {
   try {
@@ -123,9 +154,7 @@ async function fetchRSS(url, source) {
       const title = decodeEntities(
         (block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1] || '').trim()
       );
-      const link = sanitizeExternalUrl(
-        (block.match(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/)?.[1] || '').trim()
-      );
+      const link = sanitizeExternalUrl(extractItemLink(block) || '');
       const pubDate = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1]
         || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/)?.[1]
         || block.match(/<published>([\s\S]*?)<\/published>/)?.[1]
@@ -500,6 +529,19 @@ export async function synthesize(data) {
     })),
     launchByCountry: spaceData.launchByCountry || {},
     signals: spaceData.signals || [],
+    // SAT layer: SatelliteTracker.renderAll() expects {name, noradId, tle1, tle2}.
+    // Combine recent launches + space stations + ISS, filter to those carrying
+    // TLE lines. Fix per LAYER_AUDIT_2026-04-24.md #3 + RECON sprint Section 3.3.
+    satellites: [
+      ...(spaceData.recentLaunches || []),
+      ...(spaceData.spaceStations || []),
+      ...(spaceData.iss ? [spaceData.iss] : []),
+    ].filter(s => s && s.tle1 && s.tle2)
+     .map(s => ({
+       name: s.name, noradId: s.noradId,
+       tle1: s.tle1, tle2: s.tle2,
+       country: s.country, type: s.objectType,
+     })),
   };
 
   // ACLED conflict events
@@ -538,6 +580,19 @@ export async function synthesize(data) {
     n: name, err: Boolean(src.error), stale: Boolean(src.stale)
   }));
 
+  // === ADS-B military aircraft (synthesize source-name ADS-B into stable V2.adsb) ===
+  // The hyphen in 'ADS-B' means data.sources['ADS-B'] not data.sources.ADSB,
+  // which is why the MIL layer never rendered despite the adapter running.
+  const adsbSource = data.sources['ADS-B'] || {};
+  const adsb = {
+    militaryAircraft: adsbSource.militaryAircraft || [],
+    total: adsbSource.totalMilitary || 0,
+  };
+
+  // === Crypto via CoinGecko (BTC/ETH/SOL/AVAX/RNDR/AR) ===
+  // Overrides the YFinance crypto path — CoinGecko has clean coverage for all six.
+  const cryptoData = data.sources.Crypto || {};
+
   // === Yahoo Finance live market data ===
   const yfData = data.sources.YFinance || {};
   const yfQuotes = yfData.quotes || {};
@@ -554,10 +609,17 @@ export async function synthesize(data) {
       symbol: q.symbol, name: q.name, price: q.price,
       change: q.change, changePct: q.changePct, history: q.history || []
     })),
-    crypto: (yfData.crypto || []).map(q => ({
-      symbol: q.symbol, name: q.name, price: q.price,
-      change: q.change, changePct: q.changePct
-    })),
+    // Prefer CoinGecko crypto (guaranteed SOL/AVAX/RNDR/AR coverage);
+    // fall back to YFinance if CoinGecko failed.
+    crypto: (cryptoData.crypto && cryptoData.crypto.length)
+      ? cryptoData.crypto
+      : (yfData.crypto || []).map(q => ({
+          symbol: (q.symbol || '').replace('-USD', ''),
+          name: q.name,
+          price: q.price,
+          change: q.change,
+          changePct: q.changePct,
+        })),
     vix: yfQuotes['^VIX'] ? {
       value: yfQuotes['^VIX'].price,
       change: yfQuotes['^VIX'].change,
@@ -748,6 +810,13 @@ export async function synthesize(data) {
     });
   }
 
+  // AIR layer: pass through raw OpenSky state vectors so renderCivilianFlights()
+  // has individual aircraft positions to plot. Without this, the densest layer
+  // on the dashboard rendered zero entities. Fix per LAYER_AUDIT_2026-04-24.md #1.
+  const opensky = {
+    states: data.sources.OpenSky?.states || [],
+  };
+
   const V2 = {
     meta: data.son, air, thermal, firms, tSignals,
     chokepoints: chokepointsList, ships,
@@ -755,6 +824,8 @@ export async function synthesize(data) {
     sdr: { total: sdrNet.totalReceivers || 0, online: sdrNet.online || 0, zones: sdrZones },
     tg: { posts: tgData.totalPosts || 0, urgent: tgUrgent, topPosts: tgTop },
     who, fred, energy, bls, treasury, gscpi, defense, noaa, epa, acled, gdelt, space, health, news,
+    adsb,    // MIL layer: militaryAircraft array — previously orphaned by ADS-B source-name hyphen
+    opensky, // AIR layer: raw state vectors for civilian flight rendering
     social: { ...social, items: socialItems }, // posts (legacy) + items (stable)
     cctv,
     markets,

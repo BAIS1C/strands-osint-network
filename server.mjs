@@ -44,7 +44,19 @@ const llmProvider = createLLMProvider(config.llm);
 const telegramAlerter = new TelegramAlerter(config.telegram);
 const discordAlerter = new DiscordAlerter(config.discord || {});
 
-if (llmProvider) console.log(`[S.O.N] LLM enabled: ${llmProvider.name} (${llmProvider.model})`);
+if (llmProvider) {
+  // Probe once at startup so the console shows real reachability, not just config presence.
+  // Async fire-and-forget — the boot banner prints below regardless, this just adds a
+  // follow-up line once the ping resolves.
+  console.log(`[S.O.N] LLM configured: ${llmProvider.name} (${llmProvider.model}) — probing...`);
+  if (llmProvider.ping) {
+    llmProvider.ping().then(ok => {
+      console.log(`[S.O.N] LLM status: ${ok ? 'ONLINE' : 'OFFLINE (start LM Studio to enable the Consigliere)'}`);
+    }).catch(() => {
+      console.log('[S.O.N] LLM status: OFFLINE (probe threw)');
+    });
+  }
+}
 if (telegramAlerter.isConfigured) {
   console.log('[S.O.N] Telegram alerts enabled');
 
@@ -293,6 +305,32 @@ app.get('/api/proxy/gpsjam', async (req, res) => {
   }
 });
 
+// API: client-side public config — keys and toggles the worldview client
+// needs to know about. Only exposes keys explicitly designated as public
+// (Google Maps Tiles, Cesium Ion). Never expose ADSB, AISSTREAM, ACLED, etc.
+// Per RECON_SPRINT_ARCHITECTURE 2026-04-30 Section 2.1.
+app.get('/api/config', (req, res) => {
+  res.json({
+    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || null,
+    cesiumIonToken: process.env.CESIUM_ION_TOKEN || null,
+    refreshIntervalMinutes: config.refreshIntervalMinutes,
+    // Layer health flags (so client can render honest badges instead of empty
+    // entities for key-gated layers)
+    keys: {
+      googleMaps: !!process.env.GOOGLE_MAPS_API_KEY,
+      cesiumIon: !!process.env.CESIUM_ION_TOKEN,
+      adsb: !!(process.env.ADSB_API_KEY || process.env.RAPIDAPI_KEY),
+      firms: !!process.env.FIRMS_MAP_KEY,
+      acled: !!(process.env.ACLED_EMAIL && process.env.ACLED_PASSWORD),
+      aisstream: !!process.env.AISSTREAM_API_KEY,
+      youtube: !!process.env.YOUTUBE_API_KEY,
+      eventbrite: !!process.env.EVENTBRITE_TOKEN,
+      songkick: !!process.env.SONGKICK_API_KEY,
+      here: !!process.env.HERE_API_KEY,
+    },
+  });
+});
+
 // API: current data
 app.get('/api/data', (req, res) => {
   if (!currentData) return res.status(503).json({ error: 'No data yet — first sweep in progress' });
@@ -523,7 +561,7 @@ async function runSweepCycle() {
     broadcast({ type: 'update', data: currentData });
 
     console.log(`[S.O.N] Sweep complete — ${currentData.meta.sourcesOk}/${currentData.meta.sourcesQueried} sources OK`);
-    console.log(`[S.O.N] ${currentData.ideas.length} ideas (${synthesized.ideasSource}) | ${currentData.news.length} news | ${currentData.newsFeed.length} feed items`);
+    console.log(`[S.O.N] ${currentData.ideas.length} ideas (${synthesized.ideasSource}) | ${currentData.news?.items?.length || 0} news | ${currentData.newsFeed?.length || 0} feed items`);
     if (delta?.summary) console.log(`[S.O.N] Delta: ${delta.summary.totalChanges} changes, ${delta.summary.criticalChanges} critical, direction: ${delta.summary.direction}`);
     console.log(`[S.O.N] Next sweep at ${new Date(Date.now() + config.refreshIntervalMinutes * 60000).toLocaleTimeString()}`);
 
@@ -542,7 +580,7 @@ async function start() {
   console.log(`
   ╔══════════════════════════════════════════════╗
   ║        S.O.N · STRANDS OSINT NETWORK         ║
-  ║         Local Palantir · 28 Sources          ║
+  ║     Local god's-eye · 30 OSINT sources       ║
   ╠══════════════════════════════════════════════╣
   ║  Dashboard:  http://localhost:${port}${' '.repeat(14 - String(port).length)}║
   ║  Worldview:  http://localhost:${port}/worldview${' '.repeat(4 - String(port).length)}║

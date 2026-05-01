@@ -63,13 +63,44 @@ const HOTSPOTS = {
   hornOfAfrica: { lamin: 5, lomin: 40, lamax: 15, lomax: 55, label: 'Horn of Africa' },
 };
 
-// Briefing — check hotspot regions for flight activity
+// Briefing — check hotspot regions for flight activity.
+// Also preserves the first ~600 raw state vectors (deduped by icao24) as a top-level
+// `states` array so the AIR layer can render individual planes on the globe per
+// LAYER_AUDIT_2026-04-24.md fix #1. Without this passthrough, the densest layer
+// on the dashboard rendered zero entities despite the adapter pulling data fine.
 export async function briefing() {
   const hotspotEntries = Object.entries(HOTSPOTS);
+  const STATE_CAP = 600;
+  const seenIcao = new Set();
+  const allStates = [];
+
   const results = await Promise.all(
     hotspotEntries.map(async ([key, box]) => {
       const data = await getFlightsInArea(box.lamin, box.lomin, box.lamax, box.lomax);
       const states = data?.states || [];
+
+      // Preserve raw state vectors (deduped, capped) for client-side rendering.
+      for (const s of states) {
+        if (allStates.length >= STATE_CAP) break;
+        if (!Array.isArray(s) || s.length < 8) continue;
+        const icao24 = s[0];
+        if (!icao24 || seenIcao.has(icao24)) continue;
+        if (typeof s[5] !== 'number' || typeof s[6] !== 'number') continue;
+        seenIcao.add(icao24);
+        allStates.push({
+          icao24,
+          callsign: (s[1] || '').trim(),
+          country: s[2] || null,
+          lon: s[5],
+          lat: s[6],
+          alt: typeof s[7] === 'number' ? s[7] : null,
+          onGround: Boolean(s[8]),
+          velocity: typeof s[9] === 'number' ? s[9] : null,
+          heading: typeof s[10] === 'number' ? s[10] : null,
+          verticalRate: typeof s[11] === 'number' ? s[11] : null,
+        });
+      }
+
       return {
         region: box.label,
         key,
@@ -90,6 +121,7 @@ export async function briefing() {
   return {
     source: 'OpenSky',
     timestamp: new Date().toISOString(),
+    states: allStates,  // raw state vectors for client AIR layer rendering
     hotspots: results,
   };
 }

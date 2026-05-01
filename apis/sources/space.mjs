@@ -44,6 +44,11 @@ async function getRecentLaunches() {
     epoch: sat.EPOCH,
     country: sat.COUNTRY_CODE,
     objectType: sat.OBJECT_TYPE,
+    // Preserve TLE lines so SatelliteTracker can propagate live orbits.
+    // Without these, the SAT layer renders zero entities even though
+    // CelesTrak returns the data — fix per LAYER_AUDIT_2026-04-24.md #3.
+    tle1: sat.TLE_LINE1,
+    tle2: sat.TLE_LINE2,
   })).filter(s => s.name && s.noradId);
 
   launches.sort((a, b) => new Date(b.epoch || 0) - new Date(a.epoch || 0));
@@ -72,6 +77,9 @@ async function getStationData() {
     inclination: sat.INCLINATION,
     period: sat.PERIOD,
     epoch: sat.EPOCH,
+    // Preserve TLE lines for SAT layer orbit propagation.
+    tle1: sat.TLE_LINE1,
+    tle2: sat.TLE_LINE2,
   })).filter(s => s.name);
 
   const iss = stations.find(s => s.name.includes('ISS') || s.noradId === 25544);

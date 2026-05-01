@@ -4,6 +4,8 @@
 import { LayerManager } from './layers.js';
 import { ChatPanel } from './chat.js';
 import { SatelliteTracker } from './satellites.js';
+import { ShaderPresets } from './shaders/presets.js';
+import { CIVILIAN_PLANE_ICON, MILITARY_PLANE_ICON, headingToRotation } from './icons/planes.js';
 
 // ─── Cesium setup ────────────────────────────────────────────────────────
 // Optional Ion token — if Sean sets CESIUM_ION_TOKEN in .env, the server
@@ -40,6 +42,11 @@ viewer.scene.skyAtmosphere.show = true;
 viewer.scene.globe.enableLighting = false;           // was true — was dimming the entire globe
 viewer.scene.globe.showGroundAtmosphere = true;
 viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0A0B0D');
+// Occlude entities that are on the far side of the planet so you can't see
+// through the globe. Without this, Cesium renders all billboards / labels /
+// points regardless of depth, which is why Bosphorus + Panama were visible
+// at the same time despite being on opposite sides of Earth.
+viewer.scene.globe.depthTestAgainstTerrain = true;
 
 // Basemap providers — all free, no Ion required.
 // English-only labels (CARTO) to avoid OSM's native-script render (Arabic, Chinese, etc.)
@@ -78,6 +85,52 @@ function setBasemap(name) {
 }
 setBasemap('satellite');
 
+// ─── Optional: Google Photorealistic 3D Tiles ─────────────────────────────
+// If GOOGLE_MAPS_API_KEY is set in .env (and exposed via /api/config), swap
+// the flat ESRI imagery for Google's photorealistic 3D Tiles. Free-tier API
+// key from console.cloud.google.com (Map Tiles API). Falls back gracefully
+// to the existing ellipsoid + ESRI basemap if the key is absent or denied.
+// Per RECON_SPRINT_ARCHITECTURE 2026-04-30 Section 2.1.
+let google3DTileset = null;
+async function tryEnableGoogle3DTiles() {
+  try {
+    const res = await fetch('/api/config');
+    if (!res.ok) return false;
+    const cfg = await res.json();
+    if (!cfg.googleMapsApiKey) {
+      console.log('[S.O.N] 3D Tiles: no key (set GOOGLE_MAPS_API_KEY in .env to enable photorealistic globe)');
+      return false;
+    }
+    const url = `https://tile.googleapis.com/v1/3dtiles/root.json?key=${encodeURIComponent(cfg.googleMapsApiKey)}`;
+    google3DTileset = await Cesium.Cesium3DTileset.fromUrl(url, {
+      showCreditsOnScreen: true,
+    });
+    viewer.scene.primitives.add(google3DTileset);
+    // Apply tileset / basemap visibility based on current scene mode. If the
+    // user switched to 2D or CV while the tileset was still loading, this
+    // keeps the basemap visible and hides the tileset until they morph back.
+    const currentMode = viewer.scene.mode === Cesium.SceneMode.SCENE3D ? '3d'
+                       : viewer.scene.mode === Cesium.SceneMode.COLUMBUS_VIEW ? 'cv'
+                       : '2d';
+    applyTilesetVisibilityForMode(currentMode);
+    console.log('[S.O.N] 3D Tiles: photorealistic globe enabled');
+    // Surface in window.son for debugging / chat tools later
+    window.son.tileset = google3DTileset;
+    return true;
+  } catch (e) {
+    console.warn('[S.O.N] 3D Tiles failed to load (using flat ellipsoid fallback):', e.message);
+    return false;
+  }
+}
+tryEnableGoogle3DTiles();
+
+// ─── Shader presets (NVG / FLIR / CRT / OPS) ──────────────────────────────
+// Cycles on number keys 0-4. CRT pixelation (+/-) only fires when CRT active.
+// Per RECON_SPRINT_ARCHITECTURE 2026-04-30 Section 2.2.
+const shaderPresets = new ShaderPresets(viewer);
+window.son = window.son || { viewer, Cesium };
+window.son.shaderPresets = shaderPresets;
+
 // ─── App state ───────────────────────────────────────────────────────────
 
 const state = {
@@ -90,8 +143,9 @@ const state = {
   focus: null,          // current focused region
 };
 
-// Make state globally reachable for chat tool handlers + debugging
-window.son = { viewer, state, Cesium };
+// Make state globally reachable for chat tool handlers + debugging.
+// Preserve shaderPresets / tileset already attached above.
+window.son = Object.assign(window.son || {}, { viewer, state, Cesium });
 
 // ─── Layer manager ───────────────────────────────────────────────────────
 
@@ -189,21 +243,27 @@ function renderMilitaryFlights(layer, data) {
     const lon = f.lon ?? f.lng ?? f.longitude;
     const alt = (f.altitude || f.alt || 10000);
     if (typeof lat !== 'number' || typeof lon !== 'number') continue;
+    const heading = f.heading ?? f.true_track ?? f.track ?? 0;
     layer.addEntity({
       id: `mil-${f.hex || f.icao || f.flight || Math.random()}`,
       position: Cesium.Cartesian3.fromDegrees(lon, lat, alt * 0.3048),
-      point: {
-        pixelSize: 8,
-        color: Cesium.Color.fromCssColorString('#F06060'),
-        outlineColor: Cesium.Color.WHITE, outlineWidth: 1,
+      billboard: {
+        image: MILITARY_PLANE_ICON,
+        scale: 0.95,                    // larger than civilian
+        color: Cesium.Color.fromCssColorString('#F06060'),  // tints the white SVG
+        rotation: headingToRotation(heading),
+        alignedAxis: Cesium.Cartesian3.ZERO,    // screen-space rotation (icon top points heading)
+        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,  // always visible
       },
       label: {
         text: f.flight || f.callsign || f.type || '',
         font: '10px "IBM Plex Mono"',
-        fillColor: Cesium.Color.fromCssColorString('#E8E9EB'),
+        fillColor: Cesium.Color.fromCssColorString('#FDE8E2'),
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
-        pixelOffset: new Cesium.Cartesian2(10, -8),
+        pixelOffset: new Cesium.Cartesian2(14, -10),
         showBackground: false,
         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2_000_000),
       },
@@ -217,15 +277,24 @@ function renderCivilianFlights(layer, data) {
   for (const f of flights.slice(0, 800)) {
     const lat = f.lat ?? f.latitude ?? f[6];
     const lon = f.lon ?? f.longitude ?? f[5];
-    const alt = (f.altitude ?? f.baro_altitude ?? f[7] ?? 10000);
+    const altMeters = (f.altitude ?? f.baro_altitude ?? f.alt ?? f[7] ?? 10000);
     if (typeof lat !== 'number' || typeof lon !== 'number') continue;
+    const heading = f.heading ?? f.true_track ?? f.track ?? f[10] ?? 0;
+    const onGround = f.onGround ?? f[8] ?? false;
     layer.addEntity({
       id: `civ-${f.icao24 || f[0] || Math.random()}`,
-      position: Cesium.Cartesian3.fromDegrees(lon, lat, typeof alt === 'number' ? alt : 10000),
-      point: {
-        pixelSize: 4,
-        color: Cesium.Color.fromCssColorString('#8ACFE6'),
-        outlineWidth: 0,
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, typeof altMeters === 'number' ? altMeters : 10000),
+      billboard: {
+        image: CIVILIAN_PLANE_ICON,
+        scale: 0.6,
+        color: onGround
+          ? Cesium.Color.fromCssColorString('#5C7A85')   // dimmer for grounded planes
+          : Cesium.Color.fromCssColorString('#8ACFE6'),
+        rotation: headingToRotation(heading),
+        alignedAxis: Cesium.Cartesian3.ZERO,
+        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       meta: { kind: 'civilian-flight', ...f },
     });
@@ -310,7 +379,7 @@ function renderShips(layer, data) {
         scaleByDistance: new Cesium.NearFarScalar(5e5, 1.25, 2e7, 0.45),
         translucencyByDistance: new Cesium.NearFarScalar(5e5, isSynthetic ? 0.6 : 1.0, 3e7, 0.25),
         heightReference: Cesium.HeightReference.NONE,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        // No disableDepthTestDistance — we want the globe to occlude ships on the far side.
       },
       meta: { kind: 'vessel', synthetic: isSynthetic, ...v },
     });
@@ -667,13 +736,18 @@ function bandFeedItem(item) {
   const whenShort = when ? new Date(when).toISOString().substring(5, 16).replace('T', ' ') : '';
   const thumb = item.image || item.thumbnail || (href ? faviconFor(href) : '');
   const meta = [source, whenShort, item.region].filter(Boolean).join(' · ');
-  const titleHtml = href
-    ? `<a class="fi-title" href="${href}" target="_blank" rel="noopener">${title}</a>`
-    : `<div class="fi-title">${title}</div>`;
-  return `<div class="feed-item">
-    <div class="fi-thumb">${thumb ? `<img src="${thumb}" alt="" onerror="this.style.display='none'">` : (source.slice(0, 3) || '·')}</div>
-    <div class="fi-col">${titleHtml}<div class="fi-meta">${meta}</div></div>
-  </div>`;
+  // Whole-tile clickable: the <a> wraps the card so any click opens the article
+  // in a new tab. Escape everything entering HTML attributes and text nodes.
+  const inner = `
+    <div class="fi-thumb">${thumb ? `<img src="${escapeHtml(thumb)}" alt="" onerror="this.style.display='none'">` : escapeHtml(source.slice(0, 3) || '·')}</div>
+    <div class="fi-col">
+      <div class="fi-title">${escapeHtml(title)}</div>
+      <div class="fi-meta">${escapeHtml(meta)}</div>
+    </div>`;
+  if (href) {
+    return `<a class="feed-item" href="${escapeHtml(href)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;display:flex">${inner}</a>`;
+  }
+  return `<div class="feed-item">${inner}</div>`;
 }
 function setBand(id, html, count) {
   const body = document.getElementById(id);
@@ -712,37 +786,61 @@ function renderBands(d) {
   setBand('band-news', newsItems.map(bandFeedItem).join(''));
   const nN = document.getElementById('bc-news-n'); if (nN) nN.textContent = String(newsItems.length);
 
-  // X / Twitter
+  // X / Twitter — adapter retired (Nitter mirrors all dead as of 2026-04).
+  // Bot-scraper path in backlog. Show honest offline state, not empty "no data".
   const xItems = (d.social?.items || []).filter(i => {
     const s = (i.source || i.platform || '').toLowerCase();
     return s === 'x' || s === 'twitter' || s === 'nitter';
   }).slice(0, 25);
-  setBand('band-x', xItems.map(bandFeedItem).join(''));
-  const xN = document.getElementById('bc-x-n'); if (xN) xN.textContent = String(xItems.length);
+  const xHtml = xItems.length
+    ? xItems.map(bandFeedItem).join('')
+    : '<div class="u-muted" style="font-size:10px;padding:6px;line-height:1.4">Source retired: Nitter mirrors offline since 2026-04.<br>Bot-scraper path pending — see LAYER_AUDIT doc.</div>';
+  setBand('band-x', xHtml);
+  const xN = document.getElementById('bc-x-n'); if (xN) xN.textContent = String(xItems.length || '—');
 
-  // Bluesky
+  // Bluesky — adapter returns 403 since 2026-04 API change. Retired until header fix.
   const bskyItems = (d.social?.items || []).filter(i => {
     const s = (i.source || i.platform || '').toLowerCase();
     return s === 'bluesky' || s === 'bsky';
   }).slice(0, 25);
-  setBand('band-bsky', bskyItems.map(bandFeedItem).join(''));
-  const bN = document.getElementById('bc-bsky-n'); if (bN) bN.textContent = String(bskyItems.length);
+  const bskyHtml = bskyItems.length
+    ? bskyItems.map(bandFeedItem).join('')
+    : '<div class="u-muted" style="font-size:10px;padding:6px;line-height:1.4">Source retired: public.api.bsky.app returns 403 since 2026-04.<br>Header / endpoint fix pending.</div>';
+  setBand('band-bsky', bskyHtml);
+  const bN = document.getElementById('bc-bsky-n'); if (bN) bN.textContent = String(bskyItems.length || '—');
 
-  // MARKETS — FRED + energy + crypto
+  // MARKETS — energy (brent/wti/natgas) + metals (gold/silver) + crypto (btc/eth/sol/avax/rndr/ar)
+  // + FRED macro indicators. Reads the real synthesize shape: d.markets.commodities,
+  // d.markets.crypto (both arrays of {symbol, name, price, changePct}).
+  const mkt = d.markets || {};
+  const commodities = Array.isArray(mkt.commodities) ? mkt.commodities : [];
+  const cryptoArr   = Array.isArray(mkt.crypto)       ? mkt.crypto       : [];
+  const priceRow = (label, price, changePct) => {
+    if (price == null || !Number.isFinite(price)) return '';
+    const cls = changePct > 0 ? 'up' : changePct < 0 ? 'down' : '';
+    const pct = changePct != null && Number.isFinite(changePct) ? ` <span class="${cls}" style="font-size:9px;opacity:.75">${changePct > 0 ? '+' : ''}${changePct.toFixed(2)}%</span>` : '';
+    return `<div class="kv"><span class="k">${escapeHtml(label)}</span><span class="v ${cls}">$${Number(price).toLocaleString(undefined, { maximumFractionDigits: price > 1000 ? 0 : price > 10 ? 2 : 4 })}${pct}</span></div>`;
+  };
+  // Energy: from d.energy (keeps the EIA/yfinance merge) + metals (GC/SI) from d.markets.commodities
+  const energyRows = [
+    priceRow('Brent', d.energy?.brent, commodities.find(c => c.symbol === 'BZ=F')?.changePct),
+    priceRow('WTI',   d.energy?.wti,   commodities.find(c => c.symbol === 'CL=F')?.changePct),
+    d.energy?.natgas != null ? priceRow('NatGas', d.energy.natgas, commodities.find(c => c.symbol === 'NG=F')?.changePct) : '',
+  ].filter(Boolean).join('');
+  const metalRows = commodities
+    .filter(c => c.symbol === 'GC=F' || c.symbol === 'SI=F')
+    .map(c => priceRow(c.name || c.symbol, c.price, c.changePct))
+    .join('');
+  const cryptoRows = cryptoArr
+    .map(c => priceRow(c.name || c.symbol.replace('-USD', ''), c.price, c.changePct))
+    .join('');
   const fredRows = (d.fred || []).slice(0, 6).map(f =>
     `<div class="kv"><span class="k">${escapeHtml(f.id)}</span><span class="v">${f.value ?? '—'}</span></div>`
   ).join('');
-  const energyRows = d.energy ? [
-    `<div class="kv"><span class="k">Brent</span><span class="v">${d.energy.brent != null ? `$${d.energy.brent}` : '—'}</span></div>`,
-    `<div class="kv"><span class="k">WTI</span><span class="v">${d.energy.wti != null ? `$${d.energy.wti}` : '—'}</span></div>`,
-    d.energy.natgas != null ? `<div class="kv"><span class="k">NatGas</span><span class="v">$${d.energy.natgas}</span></div>` : '',
-  ].filter(Boolean).join('') : '';
-  const cryptoRows = d.crypto ? Object.entries(d.crypto).slice(0, 7).map(([k, v]) =>
-    `<div class="kv"><span class="k">${escapeHtml(k.toUpperCase())}</span><span class="v ${v.change24h > 0 ? 'up' : 'down'}">${v.price != null ? `$${v.price}` : (typeof v === 'number' ? `$${v}` : '—')}</span></div>`
-  ).join('') : '';
-  setBand('band-markets', energyRows + fredRows + cryptoRows);
+  setBand('band-markets', energyRows + metalRows + cryptoRows + fredRows);
   const mN = document.getElementById('bc-mkt-n');
-  if (mN) mN.textContent = String((d.fred?.length || 0) + (d.energy ? 2 : 0) + (d.crypto ? Object.keys(d.crypto).length : 0));
+  const mCount = (d.energy ? 3 : 0) + commodities.filter(c => c.symbol === 'GC=F' || c.symbol === 'SI=F').length + cryptoArr.length + (d.fred?.length || 0);
+  if (mN) mN.textContent = String(mCount);
 
   // SATS — upcoming passes
   const passes = d.satellites?.upcomingPasses || d.sats?.upcomingPasses || [];
@@ -997,9 +1095,31 @@ if (fsBtn) {
     fsBtn.title = document.fullscreenElement ? 'Exit fullscreen' : 'Toggle fullscreen';
   });
 }
-// 3D / 2D / Columbus View projection pill
+// 3D / 2D / Columbus View projection pill.
+// Google Photorealistic 3D Tiles only render correctly in SCENE3D — they are
+// mesh geometry, not tiled raster, so 2D and Columbus View morph the meshes
+// into ghost-tiled garbage across the viewport. When the user picks 2D or CV
+// we hide the tileset and re-show the imagery basemap so the projection
+// renders cleanly. Switching back to 3D reverses it.
+// Per session 2026-05-01 SGT — fix for 2D/CV ghosting reported visually.
+function applyTilesetVisibilityForMode(mode) {
+  const is3D = mode === '3d';
+  if (google3DTileset) {
+    google3DTileset.show = is3D;
+  }
+  if (activeBasemapLayer) {
+    // Show basemap in 2D / CV; hide it in 3D when tileset is the surface.
+    activeBasemapLayer.show = google3DTileset ? !is3D : true;
+  }
+  // Depth testing — only relevant in 3D with mesh tileset
+  viewer.scene.globe.depthTestAgainstTerrain = is3D && !!google3DTileset ? false : true;
+}
+
 function setViewMode(mode) {
   const viewModeLabel = document.getElementById('view-mode');
+  // Flip tileset visibility BEFORE the morph so the tileset doesn't try to
+  // re-project itself. Cesium's morph animation plays smoothly either way.
+  applyTilesetVisibilityForMode(mode);
   if (mode === '2d') {
     viewer.scene.morphTo2D(1.0);
     if (viewModeLabel) viewModeLabel.textContent = '2D Flat';
@@ -1046,6 +1166,107 @@ if (chatCollapse) {
     setTimeout(() => viewer.resize?.(), 240);
   });
 }
+
+// ─── Auto-collapse + hover-expand ─────────────────────────────────────────
+// Sidebars and bands fold when idle, expand on hover. Lets the globe own
+// the viewport during quiet periods, preserves the chrome on demand.
+// Per session 2026-05-01 SGT — Strands design ask, auto-shrink behaviour.
+const AUTO_COLLAPSE_MS = 10000;          // fold after 10s of no interaction
+const HOVER_GRACE_MS   = 220;            // brief grace before re-arming on mouseleave
+let autoCollapseTimer  = null;
+let hoverHoldTimer     = null;
+const userOverrides = {                  // remember manual collapse state so auto-restore respects it
+  layers: false, chat: false, bands: false,
+};
+
+function setBodyClass(cls, on) {
+  document.body.classList.toggle(cls, on);
+  if (cls === 'layers-collapsed' && layersCollapse) {
+    layersCollapse.textContent = on ? '›' : '‹';
+  }
+  if (cls === 'chat-collapsed' && chatCollapse) {
+    chatCollapse.textContent = on ? '‹' : '›';
+  }
+}
+
+// userOverrides semantics:
+//   undefined → auto-managed (default state)
+//   true      → user manually collapsed; do not auto-expand
+//   false     → user manually expanded; do not auto-collapse
+function autoCollapseAll() {
+  if (userOverrides.layers !== false) setBodyClass('layers-collapsed', true);
+  if (userOverrides.chat   !== false) setBodyClass('chat-collapsed', true);
+  if (userOverrides.bands  !== false) setBodyClass('bands-folded', true);
+  setTimeout(() => viewer.resize?.(), 240);
+}
+
+function autoExpandAll() {
+  if (userOverrides.layers !== true) setBodyClass('layers-collapsed', false);
+  if (userOverrides.chat   !== true) setBodyClass('chat-collapsed', false);
+  if (userOverrides.bands  !== true) setBodyClass('bands-folded', false);
+  setTimeout(() => viewer.resize?.(), 240);
+}
+
+function armCollapseTimer() {
+  if (autoCollapseTimer) clearTimeout(autoCollapseTimer);
+  autoCollapseTimer = setTimeout(autoCollapseAll, AUTO_COLLAPSE_MS);
+}
+
+function disarmCollapseTimer() {
+  if (autoCollapseTimer) {
+    clearTimeout(autoCollapseTimer);
+    autoCollapseTimer = null;
+  }
+}
+
+// User interaction resets the idle timer
+['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'].forEach(ev => {
+  document.addEventListener(ev, armCollapseTimer, { passive: true });
+});
+
+// Hover behavior — expand the relevant panel when mouse enters its zone.
+// Mouse leaves → arm the auto-collapse timer again after a short grace.
+function wireHoverExpand(el, cls, key) {
+  if (!el) return;
+  el.addEventListener('mouseenter', () => {
+    if (hoverHoldTimer) { clearTimeout(hoverHoldTimer); hoverHoldTimer = null; }
+    // Don't auto-expand a panel the user explicitly collapsed.
+    if (userOverrides[key] !== true) {
+      setBodyClass(cls, false);
+      setTimeout(() => viewer.resize?.(), 240);
+    }
+    disarmCollapseTimer();  // don't re-fold while hovered
+  });
+  el.addEventListener('mouseleave', () => {
+    hoverHoldTimer = setTimeout(armCollapseTimer, HOVER_GRACE_MS);
+  });
+}
+
+const layersEl  = document.getElementById('layers');
+const chatEl    = document.getElementById('chat');
+const bandTopEl = document.getElementById('band-top');
+const bandBotEl = document.getElementById('band-bot');
+
+wireHoverExpand(layersEl,  'layers-collapsed', 'layers');
+wireHoverExpand(chatEl,    'chat-collapsed',   'chat');
+wireHoverExpand(bandTopEl, 'bands-folded',     'bands');
+wireHoverExpand(bandBotEl, 'bands-folded',     'bands');
+
+// Manual collapse buttons set the user override so auto-expand respects intent.
+// Click the chevron explicitly → it stays collapsed regardless of mouse hover.
+if (layersCollapse) {
+  layersCollapse.addEventListener('click', () => {
+    userOverrides.layers = document.body.classList.contains('layers-collapsed');
+  });
+}
+if (chatCollapse) {
+  chatCollapse.addEventListener('click', () => {
+    userOverrides.chat = document.body.classList.contains('chat-collapsed');
+  });
+}
+
+// Boot: arm the timer so the chrome auto-folds 10s after first paint.
+armCollapseTimer();
 
 // Toggle-all intel layers — if any are on, turn all off; otherwise turn all on
 // (_syncRow inside LayerManager.toggle() keeps the row .on class in lockstep.)
@@ -1429,7 +1650,10 @@ function wireFeedInteractions(viewId) {
         destination: Cesium.Cartesian3.fromDegrees(lon, lat, 400_000),
         duration: 1.4,
       });
-      showInspector({ meta: { kind: 'cctv', ...cam } });
+      // Spread cam first, set kind discriminator last — `cam.kind` would otherwise
+      // overwrite 'cctv' with the stream's media kind (youtube, iframe, etc.) and
+      // the inspector would miss the CCTV media branch. Fix per RECON sprint 3.4.
+      showInspector({ meta: { ...cam, kind: 'cctv' } });
     });
   });
 }

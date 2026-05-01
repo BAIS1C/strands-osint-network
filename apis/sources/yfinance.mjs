@@ -26,6 +26,10 @@ const SYMBOLS = {
   // Crypto
   'BTC-USD': 'Bitcoin',
   'ETH-USD': 'Ethereum',
+  'SOL-USD': 'Solana',
+  'AVAX-USD': 'Avalanche',
+  'RNDR-USD': 'Render',
+  'AR-USD':  'Arweave',
   // Volatility
   '^VIX': 'VIX',
 };
@@ -120,7 +124,7 @@ export async function collect() {
     indexes: pickGroup(quotes, ['SPY', 'QQQ', 'DIA', 'IWM']),
     rates: pickGroup(quotes, ['TLT', 'HYG', 'LQD']),
     commodities: pickGroup(quotes, ['GC=F', 'SI=F', 'CL=F', 'BZ=F', 'NG=F']),
-    crypto: pickGroup(quotes, ['BTC-USD', 'ETH-USD']),
+    crypto: pickGroup(quotes, ['BTC-USD', 'ETH-USD', 'SOL-USD', 'AVAX-USD', 'RNDR-USD', 'AR-USD']),
     volatility: pickGroup(quotes, ['^VIX']),
   };
 }

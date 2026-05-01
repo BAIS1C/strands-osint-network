@@ -67,13 +67,15 @@ body.chat-collapsed #chat .chat-head { padding: 8px 4px; justify-content: center
 #layers .layers-body::-webkit-scrollbar-thumb:hover,
 #chat .chat-log::-webkit-scrollbar-thumb:hover { background: rgba(100,240,200,0.4); }
 
-/* === Three-band center column (pinch + frame) === */
-/* Globe pinched to the middle band; top + bottom bands host feed/data columns */
+/* === Three-band center column (decompressed for the globe) === */
+/* Globe given more vertical breathing room — bands trimmed from 26vh to 18vh
+   per RECON_SPRINT_ARCHITECTURE 2026-04-30 Section 2.3. Bands now collapsible
+   via the `band-folded` body class; double-click any band-col-head to fold all. */
 #map .band-top, #map .band-bot {
   flex: 0 0 auto;
-  height: 26vh;              /* roughly a quarter of viewport each */
-  min-height: 180px;
-  max-height: 320px;
+  height: 18vh;              /* trimmed from 26vh — globe now gets ~64vh of map */
+  min-height: 140px;
+  max-height: 240px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
@@ -81,8 +83,14 @@ body.chat-collapsed #chat .chat-head { padding: 8px 4px; justify-content: center
   background: var(--bg-0);
   border-bottom: 1px solid var(--line);
   overflow: hidden;
+  transition: height 220ms ease, min-height 220ms ease, padding 220ms ease;
 }
 #map .band-bot { border-bottom: none; border-top: 1px solid var(--line); }
+body.bands-folded #map .band-top,
+body.bands-folded #map .band-bot {
+  height: 30px; min-height: 30px; padding: 4px 6px;
+}
+body.bands-folded #map .band-col-body { display: none; }
 #map .band-mid {
   flex: 1 1 auto;
   position: relative;
