@@ -49,3 +49,23 @@ dashboard/public/vercel.json
 
 # Reference dumps from MindStudio (large HTML, not source)
 google dorking.html
+
+# Internal planning, architecture, audit, and status docs — local only,
+# not part of the public repo. Public-facing markdown that stays in repo:
+#   README.md, LICENSE, CONTRIBUTING.md, SECURITY.md
+# Everything else matching these patterns is dev-internal.
+*_ARCHITECTURE_*.md
+*_AUDIT_*.md
+LAYER_AUDIT_*.md
+STATUS_*.md
+CCTV_LIBRARY_VERIFIED_*.md
+NEWS_LIVE_REGISTRY_*.md
+SOURCE_QA_MATRIX_*.md
+OPTIMIZATION_*.md
+RECON_SPRINT_*.md
+DOSSIER_*.md
+X_BROWSER_*.md
+LAYER_U_*.md
+
+# PowerShell utility scripts (local, not for distribution)
+git_recovery_and_push.ps1

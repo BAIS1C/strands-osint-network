@@ -973,8 +973,17 @@ function showInspector(entity) {
   // CCTV — embed stream inline; use streamKind (original cam.kind)
   if (kind === 'cctv' && m.url) {
     const sk = m.streamKind || m.kind;
-    if (sk === 'youtube' || sk === 'iframe') {
-      embed = `<div class="insp-iframe-wrap"><iframe src="${escapeHtml(m.url)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="no-referrer"></iframe></div>`
+    if (sk === 'youtube') {
+      // YouTube requires a valid referrer to validate embed permissions; using
+      // referrerpolicy="no-referrer" causes Error 153 (player config error) on
+      // every embed regardless of video ID. Strict-origin-when-cross-origin
+      // sends the origin (localhost:3117) which YouTube accepts, while still
+      // not leaking full URL paths to the broadcaster.
+      embed = `<div class="insp-iframe-wrap"><iframe src="${escapeHtml(m.url)}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
+    } else if (sk === 'iframe') {
+      // Generic iframe (earthTV, ACP Panama, etc.) — no referrer needed,
+      // those providers explicitly serve embed pages.
+      embed = `<div class="insp-iframe-wrap"><iframe src="${escapeHtml(m.url)}" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe></div>`
         + `<a href="${escapeHtml(m.url)}" target="_blank" rel="noopener" class="insp-open-ext">Open stream ↗</a>`;
     } else if (sk === 'mjpeg' || sk === 'image') {
       embed = `<div class="insp-thumb"><img src="${escapeHtml(m.url)}" alt="${escapeHtml(m.name || 'CCTV')}" /></div>`
