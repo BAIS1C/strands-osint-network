@@ -872,7 +872,7 @@ function renderBands(d) {
   const cams = d.cctv?.cameras || [];
   const camHtml = `<div class="cam-grid-mini">${
     cams.slice(0, 12).map(c => {
-      const thumb = c.thumbnail || (c.url ? faviconFor(c.url) : '');
+      const thumb = c.thumbnailUrl || c.thumbnail || (c.url ? faviconFor(c.url) : '');
       return `<div class="cam-card-mini" data-cam-id="${escapeHtml(c.id || '')}" data-cam-url="${escapeHtml(c.url || '')}" data-cam-kind="${escapeHtml(c.kind || '')}">
         <div class="cam-thumb-mini">${thumb ? `<img src="${thumb}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='LIVE'">` : 'LIVE'}</div>
         <div class="cam-name-mini">${escapeHtml(c.name || c.id || 'CAM')}</div>

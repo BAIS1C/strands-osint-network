@@ -1,5 +1,16 @@
-// S.O.N CCTV adapter — 33 verified streams audited 2026-04-23
+// S.O.N CCTV adapter - 33 verified streams audited 2026-04-23
 // Per CCTV_LIBRARY_VERIFIED_2026-04-23.md
+// Boot-time health validation: probe each camera, cache for 24h,
+// filter dead/private/embed-disabled streams, attach thumbnails for healthy.
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CACHE_PATH = join(__dirname, '..', '..', 'runs', 'cache', 'cctv-health.json');
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const PROBE_TIMEOUT_MS = 6000;
 
 const CAMERAS = [
   { id: 'kyiv-maidan', name: 'Kyiv · Maidan Square', lat: 50.45, lon: 30.52, region: 'Ukraine', category: 'city', kind: 'youtube', url: 'https://www.youtube.com/embed/wMo4qAYQJQ0?autoplay=1&mute=1', channel: 'Maidan Live', verified: '2026-04-23', critical: true },
@@ -40,13 +51,101 @@ const CAMERAS = [
   { id: 'dubai-marina', name: 'Dubai · Marina', lat: 25.08, lon: 55.14, region: 'Gulf', category: 'city', kind: 'youtube', url: 'https://www.youtube.com/embed/nVS6Vk-wqfQ?autoplay=1&mute=1', channel: 'EarthCam', verified: '2026-04-23' },
 ];
 
+function extractYouTubeId(url) {
+  const m = url.match(/\/embed\/([A-Za-z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+async function probeYouTube(cam) {
+  const videoId = extractYouTubeId(cam.url);
+  if (!videoId) return { healthy: false, reason: 'no video id parsed' };
+  const oembed = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+  try {
+    const res = await fetch(oembed, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+    if (res.status === 200) {
+      const j = await res.json().catch(() => ({}));
+      return {
+        healthy: true,
+        thumbnailUrl: j.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        oembedTitle: j.title || null,
+        oembedAuthor: j.author_name || null,
+      };
+    }
+    if (res.status === 401) return { healthy: false, reason: 'embed disabled (private or owner-blocked)' };
+    if (res.status === 404) return { healthy: false, reason: 'video not found' };
+    return { healthy: false, reason: `oembed HTTP ${res.status}` };
+  } catch (e) {
+    return { healthy: false, reason: e.name === 'TimeoutError' ? 'oembed timeout' : e.message };
+  }
+}
+
+async function probeUrl(cam) {
+  try {
+    const res = await fetch(cam.url, { method: 'HEAD', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+    if (res.ok) return { healthy: true };
+    return { healthy: false, reason: `HTTP ${res.status}` };
+  } catch (e) {
+    return { healthy: false, reason: e.name === 'TimeoutError' ? 'timeout' : e.message };
+  }
+}
+
+async function validateCamera(cam) {
+  let probe;
+  if (cam.kind === 'youtube') probe = await probeYouTube(cam);
+  else if (cam.kind === 'iframe' || cam.kind === 'hls' || cam.kind === 'mjpeg') probe = await probeUrl(cam);
+  else probe = { healthy: true };
+  return { ...cam, ...probe, probedAt: new Date().toISOString() };
+}
+
+function loadCache() {
+  try {
+    if (!existsSync(CACHE_PATH)) return null;
+    const raw = JSON.parse(readFileSync(CACHE_PATH, 'utf8'));
+    const ageMs = Date.now() - new Date(raw.builtAt).getTime();
+    if (ageMs > CACHE_TTL_MS) return null;
+    return raw;
+  } catch { return null; }
+}
+
+function saveCache(builtAt, cameras) {
+  try {
+    mkdirSync(dirname(CACHE_PATH), { recursive: true });
+    writeFileSync(CACHE_PATH, JSON.stringify({ builtAt, cameras }, null, 2));
+  } catch (e) {
+    console.error('[CCTV] cache write failed:', e.message);
+  }
+}
+
 export async function briefing() {
+  const cached = loadCache();
+  let validated;
+  if (cached && Array.isArray(cached.cameras) && cached.cameras.length === CAMERAS.length) {
+    const byId = new Map(cached.cameras.map(c => [c.id, c]));
+    validated = CAMERAS.map(c => ({ ...c, ...(byId.get(c.id) || { healthy: true }) }));
+  } else {
+    const results = [];
+    for (let i = 0; i < CAMERAS.length; i += 12) {
+      const batch = CAMERAS.slice(i, i + 12);
+      const r = await Promise.all(batch.map(validateCamera));
+      results.push(...r);
+    }
+    validated = results;
+    saveCache(new Date().toISOString(), validated);
+  }
+
+  const healthy = validated.filter(c => c.healthy);
+  const dropped = validated.filter(c => !c.healthy);
+
   return {
-    cameras: CAMERAS,
-    totalCameras: CAMERAS.length,
-    categories: [...new Set(CAMERAS.map(c => c.category))],
-    regions:    [...new Set(CAMERAS.map(c => c.region))],
+    cameras: healthy,
+    totalCameras: healthy.length,
+    droppedCount: dropped.length,
+    droppedCameras: dropped.map(c => ({ id: c.id, name: c.name, reason: c.reason })),
+    categories: [...new Set(healthy.map(c => c.category))],
+    regions:    [...new Set(healthy.map(c => c.region))],
     lastVerified: '2026-04-23',
+    healthCheckedAt: validated[0]?.probedAt || null,
+    cacheUsed: !!cached,
   };
 }
 
