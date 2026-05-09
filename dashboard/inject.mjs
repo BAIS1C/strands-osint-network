@@ -181,44 +181,123 @@ function decodeEntities(s) {
 }
 
 export async function fetchAllNews() {
-  // Reuters / Bloomberg killed most direct RSS — use Google News query proxies
-  // for those outlets. Every other feed is a direct publisher RSS.
+  // 80+ curated RSS feeds across 8 categories. All free, no API keys.
+  // Reuters / Bloomberg / FT / WSJ use Google News query proxies since
+  // they killed direct RSS. Everything else is publisher-direct.
+  //
+  // v2: 2026-05-09 — expanded from 22 to 85 feeds. Density parity with
+  // World Monitor's 435-feed approach (we curate tighter, they go wide).
   const feeds = [
-    // Western flagships
+    // ─── Western Flagships ──────────────────────────────────────────
     ['http://feeds.bbci.co.uk/news/world/rss.xml', 'BBC'],
+    ['http://feeds.bbci.co.uk/news/business/rss.xml', 'BBC Business'],
+    ['https://feeds.bbci.co.uk/news/technology/rss.xml', 'BBC Tech'],
+    ['http://feeds.bbci.co.uk/news/science_and_environment/rss.xml', 'BBC Science'],
     ['https://rss.nytimes.com/services/xml/rss/nyt/World.xml', 'NYT'],
     ['https://rss.nytimes.com/services/xml/rss/nyt/Americas.xml', 'NYT Americas'],
     ['https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml', 'NYT Asia'],
-    ['https://feeds.bbci.co.uk/news/technology/rss.xml', 'BBC Tech'],
-    ['http://feeds.bbci.co.uk/news/science_and_environment/rss.xml', 'BBC Science'],
+    ['https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml', 'NYT Middle East'],
+    ['https://rss.nytimes.com/services/xml/rss/nyt/Africa.xml', 'NYT Africa'],
+    ['https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml', 'NYT Europe'],
+    ['https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml', 'NYT Tech'],
+    ['https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', 'NYT Business'],
     ['https://www.theguardian.com/world/rss', 'Guardian'],
+    ['https://www.theguardian.com/technology/rss', 'Guardian Tech'],
+    ['https://www.theguardian.com/business/rss', 'Guardian Business'],
+    ['https://feeds.washingtonpost.com/rss/world', 'WaPo'],
 
-    // Reuters / Bloomberg via Google News queries (restricted to site)
+    // ─── Wire Services via Google News (site-restricted) ────────────
     ['https://news.google.com/rss/search?q=when:1d+site:reuters.com&hl=en-US&gl=US&ceid=US:en', 'Reuters'],
     ['https://news.google.com/rss/search?q=when:1d+site:bloomberg.com&hl=en-US&gl=US&ceid=US:en', 'Bloomberg'],
     ['https://news.google.com/rss/search?q=when:1d+site:ft.com&hl=en-US&gl=US&ceid=US:en', 'FT'],
     ['https://news.google.com/rss/search?q=when:1d+site:wsj.com&hl=en-US&gl=US&ceid=US:en', 'WSJ'],
+    ['https://news.google.com/rss/search?q=when:1d+site:apnews.com&hl=en-US&gl=US&ceid=US:en', 'AP'],
 
-    // Middle East / Gulf
+    // ─── Middle East / Gulf / Africa ────────────────────────────────
     ['https://www.aljazeera.com/xml/rss/all.xml', 'Al Jazeera'],
     ['https://www.timesofisrael.com/feed/', 'Times of Israel'],
+    ['https://english.alarabiya.net/tools/rss', 'Al Arabiya'],
+    ['https://www.middleeasteye.net/rss', 'Middle East Eye'],
+    ['https://www.arabnews.com/rss.xml', 'Arab News'],
+    ['https://www.jpost.com/rss/rssfeedsfrontpage.aspx', 'Jerusalem Post'],
+    ['https://www.dailymaverick.co.za/feed/', 'Daily Maverick'],
 
-    // Asia
+    // ─── Asia-Pacific ───────────────────────────────────────────────
     ['https://www.scmp.com/rss/91/feed', 'SCMP'],
     ['https://asia.nikkei.com/rss/feed/nar', 'Nikkei Asia'],
     ['https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6511', 'CNA'],
+    ['https://www.straitstimes.com/news/asia/rss.xml', 'Straits Times'],
+    ['https://www.bangkokpost.com/rss/data/topstories.xml', 'Bangkok Post'],
+    ['https://www.thejakartapost.com/feed', 'Jakarta Post'],
+    ['https://www.rappler.com/feed/', 'Rappler'],
+    ['https://english.kyodonews.net/rss/all.xml', 'Kyodo News'],
+    ['https://www.koreaherald.com/common/rss_xml.php?ct=102', 'Korea Herald'],
+    ['https://timesofindia.indiatimes.com/rssfeeds/296589292.cms', 'Times of India'],
+    ['https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml', 'Hindustan Times'],
+    ['https://www.dawn.com/feed', 'Dawn (Pakistan)'],
+    ['https://www.abc.net.au/news/feed/51120/rss.xml', 'ABC Australia'],
+    ['https://www.stuff.co.nz/rss', 'Stuff NZ'],
 
-    // Europe
+    // ─── Europe ─────────────────────────────────────────────────────
     ['https://rss.dw.com/rdf/rss-en-all', 'Deutsche Welle'],
     ['https://www.france24.com/en/rss', 'France 24'],
+    ['https://www.euronews.com/rss', 'Euronews'],
+    ['https://feeds.skynews.com/feeds/rss/world.xml', 'Sky News'],
+    ['https://www.telegraph.co.uk/rss.xml', 'Telegraph'],
+    ['https://www.independent.co.uk/news/world/rss', 'Independent'],
+    ['https://www.irishtimes.com/cmlink/news-1.1319192', 'Irish Times'],
+    ['https://www.politico.eu/feed/', 'Politico EU'],
+    ['https://www.kyivindependent.com/feed/', 'Kyiv Independent'],
 
-    // Defense / mil-spec
+    // ─── Americas (beyond US) ───────────────────────────────────────
+    ['https://www.cbc.ca/webfeed/rss/rss-world', 'CBC'],
+    ['https://globalnews.ca/world/feed/', 'Global News CA'],
+    ['https://riotimesonline.com/feed/', 'Rio Times'],
+
+    // ─── Defense / Security / Geopolitics ───────────────────────────
     ['https://breakingdefense.com/feed/', 'Breaking Defense'],
     ['https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml', 'Defense News'],
+    ['https://www.janes.com/feeds/news', 'Janes'],
+    ['https://www.defenseone.com/rss/', 'Defense One'],
+    ['https://warontherocks.com/feed/', 'War on the Rocks'],
+    ['https://thediplomat.com/feed/', 'The Diplomat'],
+    ['https://foreignpolicy.com/feed/', 'Foreign Policy'],
+    ['https://www.cfr.org/rss.xml', 'CFR'],
 
-    // Markets
+    // ─── Markets / Finance / Economy ────────────────────────────────
     ['https://www.cnbc.com/id/100727362/device/rss/rss.html', 'CNBC World'],
     ['https://feeds.marketwatch.com/marketwatch/topstories/', 'MarketWatch'],
+    ['https://www.cnbc.com/id/10001147/device/rss/rss.html', 'CNBC Markets'],
+    ['https://www.investopedia.com/feedbuilder/feed/getfeed/?feedName=rss_headline', 'Investopedia'],
+    ['https://finance.yahoo.com/news/rssindex', 'Yahoo Finance'],
+
+    // ─── Technology / AI / Cyber ────────────────────────────────────
+    ['https://feeds.arstechnica.com/arstechnica/technology-lab', 'Ars Technica'],
+    ['https://www.wired.com/feed/rss', 'Wired'],
+    ['https://www.theverge.com/rss/index.xml', 'The Verge'],
+    ['https://techcrunch.com/feed/', 'TechCrunch'],
+    ['https://www.technologyreview.com/feed/', 'MIT Tech Review'],
+    ['https://krebsonsecurity.com/feed/', 'Krebs Security'],
+    ['https://www.bleepingcomputer.com/feed/', 'BleepingComputer'],
+    ['https://feeds.feedburner.com/TheHackersNews', 'Hacker News (Security)'],
+
+    // ─── Energy / Commodities / Climate ─────────────────────────────
+    ['https://oilprice.com/rss/main', 'OilPrice'],
+    ['https://www.carbonbrief.org/feed/', 'Carbon Brief'],
+    ['https://www.mining.com/feed/', 'Mining.com'],
+
+    // ─── Science / Space / Health ───────────────────────────────────
+    ['https://www.space.com/feeds/all', 'Space.com'],
+    ['https://spacenews.com/feed/', 'SpaceNews'],
+    ['https://www.nature.com/nature.rss', 'Nature'],
+    ['https://www.newscientist.com/feed/home/', 'New Scientist'],
+    ['https://www.who.int/feeds/entity/news/en/rss.xml', 'WHO News'],
+
+    // ─── Crypto / Web3 ─────────────────────────────────────────────
+    ['https://cointelegraph.com/rss', 'CoinTelegraph'],
+    ['https://www.coindesk.com/arc/outboundfeeds/rss/', 'CoinDesk'],
+    ['https://decrypt.co/feed', 'Decrypt'],
+    ['https://thedefiant.io/feed', 'The Defiant'],
   ];
 
   const results = await Promise.allSettled(
@@ -229,29 +308,39 @@ export async function fetchAllNews() {
     .filter(r => r.status === 'fulfilled')
     .flatMap(r => r.value);
 
-  // De-duplicate and geo-tag
+  // De-duplicate by title prefix and geo-tag
   const seen = new Set();
   const geoNews = [];
+  const nonGeoNews = [];
   for (const item of allNews) {
+    if (!item.title) continue;
     const key = item.title.substring(0, 40).toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     const geo = geoTagText(item.title);
+    const entry = {
+      title: item.title.substring(0, 120),
+      source: item.source,
+      date: item.date,
+      url: item.url,
+    };
     if (geo) {
       geoNews.push({
-        title: item.title.substring(0, 100),
-        source: item.source,
-        date: item.date,
-        url: item.url,
+        ...entry,
         lat: geo.lat + (Math.random() - 0.5) * 2,
         lon: geo.lon + (Math.random() - 0.5) * 2,
         region: geo.region
       });
+    } else {
+      // Keep non-geo items for the ticker (no map marker, still flows to band)
+      nonGeoNews.push({ ...entry, region: 'Global' });
     }
   }
 
+  // Merge: geo-tagged first (they get map markers), then non-geo (ticker only)
   geoNews.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-  return geoNews.slice(0, 50);
+  nonGeoNews.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  return [...geoNews.slice(0, 80), ...nonGeoNews.slice(0, 40)];
 }
 
 // === Leverageable Ideas from Signals ===
