@@ -35,18 +35,41 @@
   --text:var(--ew-text);--dim:var(--ew-text-muted);--accent:var(--ew-primary);--accent2:var(--ew-info);
   --warn:var(--ew-warning);--danger:var(--ew-danger);--mono:var(--ew-font-mono);--sans:var(--ew-font-body);
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden}
-.bg-grid{position:fixed;inset:0;pointer-events:none;opacity:0;
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden}
+body{display:grid;grid-template-rows:32px 44px 1fr 26px;grid-template-areas:"titlebar" "cmdbar" "content" "statusbar"}
+#son-titlebar{grid-area:titlebar}
+#son-cmdbar{grid-area:cmdbar}
+#son-content{grid-area:content;position:relative;overflow-y:auto;overflow-x:hidden}
+#son-statusbar{grid-area:statusbar}
+.bg-grid{position:absolute;inset:0;pointer-events:none;opacity:0;
   background-image:linear-gradient(color-mix(in oklab, var(--ew-primary) 3%, transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in oklab, var(--ew-primary) 3%, transparent) 1px,transparent 1px);
   background-size:60px 60px;mask-image:radial-gradient(ellipse at 50% 30%,black 20%,transparent 70%)}
-.bg-radial{position:fixed;inset:0;pointer-events:none;opacity:0;
+.bg-radial{position:absolute;inset:0;pointer-events:none;opacity:0;
   background:radial-gradient(ellipse at 50% 0%,color-mix(in oklab, var(--ew-primary) 15%, transparent),transparent 50%),radial-gradient(ellipse at 80% 20%,color-mix(in oklab, var(--ew-info) 8%, transparent),transparent 40%)}
-.scanline{position:fixed;inset:0;pointer-events:none;overflow:hidden;opacity:0}
+.scanline{position:absolute;inset:0;pointer-events:none;overflow:hidden;opacity:0}
 .scanline::after{content:'';position:absolute;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,color-mix(in oklab, var(--ew-primary) 12%, transparent),transparent);animation:scanMove 4s linear infinite}
 @keyframes scanMove{0%{top:-2px}100%{top:100%}}
 
+/* APP CHROME (mirrors worldview.html EWDS chrome) */
+#son-titlebar{display:flex;align-items:center;gap:var(--ew-space-3);padding:0 var(--ew-space-3);height:32px;background:var(--ew-titlebar-bg);border-bottom:1px solid var(--ew-chrome-border);user-select:none;flex-shrink:0}
+.son-titlebar-brand{display:flex;align-items:center;gap:var(--ew-space-2);font-family:var(--ew-font-display);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-widest);text-transform:uppercase;color:var(--ew-primary);white-space:nowrap;flex-shrink:0}
+.son-titlebar-brand .son-brand-sub{font-family:var(--ew-font-mono);color:var(--ew-text-faint);letter-spacing:var(--ew-track-wider);font-size:10px}
+.son-titlebar-tabs{display:flex;gap:0;flex:1;height:100%;align-items:stretch;padding-left:var(--ew-space-4);overflow-x:auto;scrollbar-width:none}
+.son-titlebar-tabs::-webkit-scrollbar{display:none}
+.son-tab{display:inline-flex;align-items:center;gap:var(--ew-space-2);padding:0 var(--ew-space-4);height:100%;font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all 120ms ease}
+.son-tab:hover{color:var(--ew-text)}
+.son-tab.active{color:var(--ew-primary);border-bottom-color:var(--ew-primary);background:var(--ew-primary-soft)}
+.son-tab .tab-dot{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor}
+.son-defcon-chip{display:inline-flex;align-items:center;gap:var(--ew-space-2);padding:0 var(--ew-space-3);height:22px;font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);text-transform:uppercase;border:1px solid var(--ew-warm);color:var(--ew-warm);background:var(--ew-warm-soft);white-space:nowrap}
+.son-titlebar-meta{display:inline-flex;align-items:center;gap:var(--ew-space-3);font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);white-space:nowrap}
+#son-cmdbar{display:flex;align-items:center;gap:var(--ew-space-3);padding:var(--ew-space-2) var(--ew-space-3);height:44px;background:var(--ew-chrome-bg);border-bottom:1px solid var(--ew-chrome-border);user-select:none;flex-shrink:0}
+.son-cmd-clock{font-family:var(--ew-font-mono);font-size:var(--ew-text-sm);letter-spacing:var(--ew-track-wider);color:var(--ew-text);padding:0 var(--ew-space-3);border-right:1px solid var(--ew-border-faint);white-space:nowrap}
+.son-cmd-search{display:inline-flex;align-items:center;gap:var(--ew-space-2);padding:0 var(--ew-space-3);height:28px;background:var(--ew-surface-sunken);border:1px solid var(--ew-border);color:var(--ew-text-faint);font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);cursor:pointer;min-width:160px}
+.son-cmd-search:hover{border-color:var(--ew-border-strong)}
+.son-cmd-gear:hover{color:var(--ew-text);border-color:var(--ew-border-strong);background:var(--ew-surface-raised)}
+
 /* BOOT */
-#boot{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
+#boot{position:absolute;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
 .logo-ring{width:120px;height:120px;border:2px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;opacity:0}
 .logo-ring::before{content:'';position:absolute;inset:-8px;border:1px solid var(--border);border-radius:50%;border-top-color:var(--accent);animation:spin 2s linear infinite}
 .logo-ring::after{content:'';position:absolute;inset:-16px;border:1px solid color-mix(in oklab, var(--ew-primary) 6%, transparent);border-radius:50%;border-bottom-color:color-mix(in oklab, var(--ew-primary) 15%, transparent);animation:spin 3s linear infinite reverse}
@@ -58,7 +81,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 #bootFinal{margin-top:24px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--accent);letter-spacing:0.15em;opacity:0}
 
 /* MAIN */
-#main{opacity:0;min-height:100vh;position:relative;padding:10px 12px}
+#main{opacity:0;min-height:100%;position:relative;padding:10px 12px}
 
 /* TOPBAR */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border:1px solid var(--border);background:var(--panel);backdrop-filter:blur(20px);flex-wrap:wrap;gap:10px}
@@ -77,7 +100,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .alert-badge{padding:5px 12px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid color-mix(in oklab, var(--ew-danger) 40%, transparent);color:var(--ew-text-inverse);background:linear-gradient(135deg,color-mix(in oklab, var(--ew-danger) 20%, transparent),color-mix(in oklab, var(--ew-danger) 8%, transparent))}
 
 /* GRID */
-.grid{display:grid;grid-template-columns:240px 1fr 340px;gap:10px;margin-top:10px;min-height:calc(100vh - 100px)}
+.grid{display:grid;grid-template-columns:240px 1fr 340px;gap:10px;margin-top:10px;min-height:calc(100% - 80px)}
 .col{display:flex;flex-direction:column;gap:10px}
 .g-panel{border:1px solid var(--border);background:var(--glass);backdrop-filter:blur(16px);padding:12px;position:relative;overflow:hidden}
 .g-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,color-mix(in oklab, var(--ew-primary) 15%, transparent),transparent);pointer-events:none}
@@ -274,6 +297,79 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 </style>
 </head>
 <body>
+
+<!-- ============ TITLEBAR ============ -->
+<div id="son-titlebar" class="son-titlebar">
+  <div class="son-titlebar-brand">
+    S.O.N
+    <span class="son-brand-sub">strands osint network</span>
+  </div>
+  <div class="son-titlebar-tabs">
+    <button class="son-tab" data-screen="worldview"><span class="tab-dot"></span> Worldview</button>
+    <button class="son-tab active" data-screen="consigliere">Consigliere</button>
+    <button class="son-tab" data-screen="inspector">Inspector</button>
+    <button class="son-tab" data-screen="alerts">Alerts</button>
+    <button class="son-tab" data-screen="settings">Settings</button>
+  </div>
+  <div class="son-defcon-chip" id="defcon-chip">DEFCON <span id="defcon-num">5</span></div>
+  <div class="son-titlebar-meta">
+    <span id="meta-sources">—</span>
+    <span>v2.1.0</span>
+    <span id="status-uplink" style="display:inline-flex;align-items:center;gap:4px;color:var(--ew-primary)">
+      <span style="width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;animation:pulse-blink 2s ease-in-out infinite"></span>
+      LIVE
+    </span>
+  </div>
+</div>
+
+<!-- ============ COMMAND BAR ============ -->
+<div id="son-cmdbar" class="son-cmdbar">
+  <div class="son-cmd-clock" id="meta-clock">—</div>
+  <div class="son-cmd-search" title="Search (Ctrl+K)">
+    Search...
+    <kbd style="font-family:var(--ew-font-mono);font-size:10px;padding:1px 4px;background:var(--ew-surface-raised);border:1px solid var(--ew-border);color:var(--ew-text-muted);margin-left:auto">^K</kbd>
+  </div>
+  <div class="son-cmdbar-spacer"></div>
+  <div class="son-cmd-badge" id="cmd-lm-status" title="LM Studio status" style="display:inline-flex;align-items:center;gap:var(--ew-space-1);padding:2px var(--ew-space-2);font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-primary);background:var(--ew-primary-soft);border:1px solid color-mix(in oklab, var(--ew-primary) 30%, transparent)">
+    <span class="dot" style="width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor"></span>
+    <span id="meta-model">LM STUDIO</span>
+  </div>
+  <div class="son-cmd-badge" id="cmd-sweep-status" title="Sweep status" style="display:inline-flex;align-items:center;gap:var(--ew-space-1);padding:2px var(--ew-space-2);font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-primary);background:var(--ew-primary-soft);border:1px solid color-mix(in oklab, var(--ew-primary) 30%, transparent)">
+    <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--ew-success);box-shadow:0 0 6px var(--ew-success)"></span>
+    SWEEP OK
+  </div>
+  <button class="son-cmd-gear" id="cmd-gear" title="Tweaks (skin, mode, density)" style="width:28px;height:28px;display:grid;place-items:center;background:transparent;border:1px solid var(--ew-border);color:var(--ew-text-faint);cursor:pointer;font-family:var(--ew-font-mono);font-size:14px">&#9881;</button>
+</div>
+
+<!-- ============ TWEAKS POPOVER ============ -->
+<div class="son-tweaks-popover" id="tweaks-popover" style="position:fixed;top:76px;right:12px;z-index:200;width:260px;background:var(--ew-surface);border:1px solid var(--ew-border-strong);box-shadow:var(--ew-shadow-float);display:none;flex-direction:column;gap:var(--ew-space-3);padding:var(--ew-space-4)">
+  <div class="son-tweaks-row" style="display:flex;align-items:center;justify-content:space-between;font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-muted)">
+    <span>Skin</span>
+    <div class="son-tweaks-opts" data-tweak="skin" style="display:flex;gap:1px;border:1px solid var(--ew-border);overflow:hidden">
+      <button class="son-tweaks-opt on" data-val="terminal" style="padding:4px 8px;font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:var(--ew-surface);border:none;cursor:pointer">Terminal</button>
+      <button class="son-tweaks-opt" data-val="classic" style="padding:4px 8px;font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:var(--ew-surface);border:none;cursor:pointer">Classic</button>
+      <button class="son-tweaks-opt" data-val="refined" style="padding:4px 8px;font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:var(--ew-surface);border:none;cursor:pointer">Refined</button>
+    </div>
+  </div>
+  <div class="son-tweaks-row" style="display:flex;align-items:center;justify-content:space-between;font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-muted)">
+    <span>Mode</span>
+    <div class="son-tweaks-opts" data-tweak="mode" style="display:flex;gap:1px;border:1px solid var(--ew-border);overflow:hidden">
+      <button class="son-tweaks-opt on" data-val="dark" style="padding:4px 8px;font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:var(--ew-surface);border:none;cursor:pointer">Dark</button>
+      <button class="son-tweaks-opt" data-val="light" style="padding:4px 8px;font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:var(--ew-surface);border:none;cursor:pointer">Light</button>
+    </div>
+  </div>
+  <div class="son-tweaks-row" style="display:flex;align-items:center;justify-content:space-between;font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-muted)">
+    <span>Density</span>
+    <div class="son-tweaks-opts" data-tweak="density" style="display:flex;gap:1px;border:1px solid var(--ew-border);overflow:hidden">
+      <button class="son-tweaks-opt" data-val="compact" style="padding:4px 8px;font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:var(--ew-surface);border:none;cursor:pointer">Compact</button>
+      <button class="son-tweaks-opt on" data-val="default" style="padding:4px 8px;font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:var(--ew-surface);border:none;cursor:pointer">Default</button>
+      <button class="son-tweaks-opt" data-val="roomy" style="padding:4px 8px;font-family:var(--ew-font-mono);font-size:10px;letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);background:var(--ew-surface);border:none;cursor:pointer">Roomy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONTENT AREA ============ -->
+<div id="son-content">
 <div id="boot">
   <div class="logo-ring"><span class="logo-text">S.O.N</span></div>
   <div id="bootLines"></div>
@@ -344,6 +440,11 @@ function renderTopbar(){
       ${D.delta?.summary ? `<span class="meta-pill">DELTA <span class="v">${D.delta.summary.direction==='risk-off'?'&#x25B2; RISK-OFF':D.delta.summary.direction==='risk-on'?'&#x25BC; RISK-ON':'&#x25C6; MIXED'}</span></span>` : ''}
       <span class="alert-badge">HIGH ALERT</span>
     </div>`;
+  // Update chrome metadata
+  const srcEl = document.getElementById('meta-sources');
+  if (srcEl) srcEl.textContent = D.meta.sourcesOk + '/' + D.meta.sourcesQueried + ' SRC';
+  const sweepEl = document.getElementById('sb-sweep');
+  if (sweepEl) sweepEl.textContent = D.meta.sourcesOk + '/' + D.meta.sourcesQueried + ' SOURCES · ' + (D.meta.totalDurationMs/1000).toFixed(1) + 's';
 }
 
 // === LEFT RAIL ===
@@ -1325,6 +1426,119 @@ document.addEventListener('DOMContentLoaded', () => {
     init();
   }
 });
+</script>
+</div><!-- /son-content -->
+
+<!-- ============ STATUS BAR ============ -->
+<div id="son-statusbar" style="display:flex;align-items:center;gap:var(--ew-space-4);padding:0 var(--ew-space-3);height:26px;background:var(--ew-chrome-bg);border-top:1px solid var(--ew-chrome-border);font-family:var(--ew-font-mono);font-size:var(--ew-text-xs);letter-spacing:var(--ew-track-wider);text-transform:uppercase;color:var(--ew-text-faint);flex-shrink:0">
+  <div class="son-sb-cell" style="display:inline-flex;align-items:center;gap:var(--ew-space-2)">
+    <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--ew-primary);box-shadow:0 0 6px var(--ew-primary)"></span>
+    <span id="sb-screen">CONSIGLIERE</span>
+  </div>
+  <div class="son-sb-cell" style="display:inline-flex;align-items:center;gap:var(--ew-space-2);padding-left:var(--ew-space-4);border-left:1px solid var(--ew-border-faint)">
+    <span id="sb-sweep">— SOURCES</span>
+  </div>
+  <div style="flex:1"></div>
+  <div class="son-sb-cell" style="display:inline-flex;align-items:center;gap:var(--ew-space-2);padding-left:var(--ew-space-4);border-left:1px solid var(--ew-border-faint)" id="sb-skin-readout">
+    terminal / dark / compact
+  </div>
+</div>
+
+<!-- ============ EWDS CHROME CONTROLS ============ -->
+<script>
+(function(){
+  const h = document.documentElement;
+
+  // --- Gear toggle ---
+  const gear = document.getElementById('cmd-gear');
+  const pop = document.getElementById('tweaks-popover');
+  if (gear && pop) {
+    gear.addEventListener('click', () => {
+      pop.style.display = pop.style.display === 'flex' ? 'none' : 'flex';
+    });
+    document.addEventListener('click', e => {
+      if (!pop.contains(e.target) && e.target !== gear) pop.style.display = 'none';
+    });
+  }
+
+  // --- Tweaks opts ---
+  document.querySelectorAll('.son-tweaks-opts').forEach(group => {
+    const key = group.dataset.tweak;
+    group.querySelectorAll('.son-tweaks-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        group.querySelectorAll('.son-tweaks-opt').forEach(b => {
+          b.classList.remove('on');
+          b.style.color = 'var(--ew-text-faint)';
+          b.style.background = 'var(--ew-surface)';
+        });
+        btn.classList.add('on');
+        btn.style.color = 'var(--ew-primary)';
+        btn.style.background = 'var(--ew-primary-soft)';
+        const val = btn.dataset.val;
+        if (key === 'skin') { h.setAttribute('data-skin', val); localStorage.setItem('son.skin', val); }
+        if (key === 'mode') { h.setAttribute('data-mode', val); localStorage.setItem('son.mode', val); }
+        if (key === 'density') { h.setAttribute('data-density', val); localStorage.setItem('son.density', val); }
+        updateSkinReadout();
+      });
+    });
+  });
+
+  // Sync tweaks UI with current attributes
+  function syncTweaksUI() {
+    ['skin','mode','density'].forEach(key => {
+      const val = h.getAttribute('data-' + key);
+      if (!val) return;
+      const group = document.querySelector('.son-tweaks-opts[data-tweak="'+key+'"]');
+      if (!group) return;
+      group.querySelectorAll('.son-tweaks-opt').forEach(b => {
+        const isOn = b.dataset.val === val;
+        b.classList.toggle('on', isOn);
+        b.style.color = isOn ? 'var(--ew-primary)' : 'var(--ew-text-faint)';
+        b.style.background = isOn ? 'var(--ew-primary-soft)' : 'var(--ew-surface)';
+      });
+    });
+  }
+  syncTweaksUI();
+
+  // --- Skin readout ---
+  function updateSkinReadout() {
+    const el = document.getElementById('sb-skin-readout');
+    if (el) el.textContent = [
+      h.getAttribute('data-skin') || 'terminal',
+      h.getAttribute('data-mode') || 'dark',
+      h.getAttribute('data-density') || 'compact'
+    ].join(' / ');
+  }
+  updateSkinReadout();
+
+  // --- Tab strip routing ---
+  document.querySelectorAll('.son-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const screen = tab.dataset.screen;
+      if (screen === 'worldview') {
+        window.location.href = '/';
+        return;
+      }
+      if (screen === 'consigliere') return; // already here
+      // Other screens live on worldview, navigate there with hash hint
+      window.location.href = '/?screen=' + screen;
+    });
+  });
+
+  // --- Clock (SGT) ---
+  function tickClock() {
+    const el = document.getElementById('meta-clock');
+    if (!el) return;
+    const now = new Date();
+    const sgt = new Date(now.getTime() + (8 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
+    const hh = String(sgt.getUTCHours()).padStart(2, '0');
+    const mm = String(sgt.getUTCMinutes()).padStart(2, '0');
+    const ss = String(sgt.getUTCSeconds()).padStart(2, '0');
+    el.textContent = hh + ':' + mm + ':' + ss + ' SGT';
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+})();
 </script>
 </body>
 </html>

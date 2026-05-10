@@ -503,6 +503,21 @@ body.bands-folded #map .band-col-body { display: none; }
 .mode-pill .mp-opt:hover { color: var(--ew-text); }
 .mode-pill .mp-opt.on { color: var(--ew-primary); background: color-mix(in oklab, var(--ew-primary) 8%, transparent); }
 
+/* Shader picker (CLN / NVG / FLR / CRT / OPS) */
+.shader-picker {
+  display: inline-flex; align-items: center;
+  background: var(--ew-surface-sunken); border: 1px solid var(--ew-border-strong);
+  overflow: hidden;
+  font-family: var(--ew-font-mono); font-size: 9px; letter-spacing: 0.08em;
+}
+.shader-picker .sp-opt {
+  padding: 4px 8px; cursor: pointer; color: var(--ew-text-faint);
+  border: none; background: transparent;
+  transition: color 120ms, background 120ms;
+}
+.shader-picker .sp-opt:hover { color: var(--ew-text); }
+.shader-picker .sp-opt.on { color: var(--ew-primary-fg); background: var(--ew-primary); }
+
 /* Status chip strip */
 .status-strip {
   display: flex; gap: 8px; flex-wrap: wrap;
@@ -993,6 +1008,197 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
 .dl-v.ok     { color: var(--ew-success); }
 .dl-v.dim    { color: var(--ew-text-faint); }
 
+/* ============ LAYER ROWS ============ */
+
+.layer {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--ew-space-3);
+  padding: 8px var(--ew-space-3);
+  background: var(--ew-surface);
+  cursor: pointer;
+  transition: background 0.12s;
+  user-select: none;
+}
+.layer:hover { background: var(--ew-surface-overlay); }
+.layer.on { background: color-mix(in oklab, var(--ew-primary) 10%, var(--ew-surface)); }
+.layer.critical.on { background: color-mix(in oklab, var(--ew-warm) 12%, var(--ew-surface)); }
+
+.layer-check {
+  width: 14px; height: 14px;
+  border: 1px solid var(--ew-border-strong);
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  background: var(--ew-surface-sunken);
+  transition: all 0.12s;
+}
+.layer.on .layer-check {
+  background: var(--ew-primary); border-color: var(--ew-primary);
+}
+.layer.on .layer-check::after {
+  content: ''; width: 7px; height: 4px;
+  border-left: 2px solid var(--ew-primary-fg);
+  border-bottom: 2px solid var(--ew-primary-fg);
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.layer.critical.on .layer-check { background: var(--ew-warm); border-color: var(--ew-warm); }
+
+.layer-glyph {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  border-radius: var(--ew-radius-sm);
+  font-family: var(--ew-font-display); font-weight: 400; font-size: 13px;
+  color: color-mix(in oklab, var(--ew-text-faint) 60%, transparent);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.layer.on .layer-glyph { background: transparent; color: var(--ew-primary); opacity: 1; }
+.layer.critical .layer-glyph { color: color-mix(in oklab, var(--ew-text-faint) 60%, transparent); }
+.layer.critical.on .layer-glyph { background: transparent; color: var(--ew-warm); }
+
+.layer-name {
+  font-size: 11px; color: var(--ew-text); font-weight: 400;
+  display: flex; flex-direction: column;
+}
+.layer-name small {
+  font-family: var(--ew-font-mono); font-size: 8px;
+  color: var(--ew-text-faint); letter-spacing: 0.04em;
+  text-transform: uppercase; margin-top: 1px;
+}
+
+.layer-count {
+  font-family: var(--ew-font-mono); font-size: 10px;
+  color: var(--ew-text-muted); letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-sm);
+  min-width: 28px; text-align: center;
+}
+.layer.on .layer-count { color: var(--ew-primary); border-color: color-mix(in oklab, var(--ew-primary) 30%, transparent); }
+
+/* ============ RADIO GROUP (basemap selector) ============ */
+
+.radio-group {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+  background: var(--ew-border); border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-md); overflow: hidden;
+}
+.radio-opt {
+  padding: 6px;
+  background: var(--ew-surface);
+  text-align: center;
+  font-family: var(--ew-font-mono); font-size: 10px;
+  color: var(--ew-text-muted); letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.12s;
+  user-select: none;
+}
+.radio-opt:hover { background: var(--ew-surface-overlay); color: var(--ew-text); }
+.radio-opt.on { background: var(--ew-primary-soft); color: var(--ew-primary); }
+
+/* ============ HANKO STAMP ============ */
+
+.hanko {
+  width: 52px; height: 52px;
+  background: var(--ew-warm);
+  border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: var(--ew-font-display); font-weight: 900; color: var(--ew-text-inverse);
+  transform: rotate(-3deg);
+  box-shadow: 0 3px 0 color-mix(in oklab, var(--ew-bg) 35%, transparent);
+  user-select: none;
+}
+.hanko .k1 { font-size: 22px; line-height: 1; }
+.hanko .k2 {
+  font-family: var(--ew-font-mono); font-size: 7px;
+  letter-spacing: 0.16em; margin-top: 2px;
+}
+
+/* ============ TIMELINE / DIRECTOR BAR ============ */
+
+.timeline-bar {
+  display: flex; align-items: center; gap: var(--ew-space-3);
+  padding: 10px var(--ew-space-4);
+  background: var(--ew-surface);
+  border-top: 1px solid var(--ew-border);
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.timeline-rec {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: transparent; color: color-mix(in oklab, var(--ew-text-faint) 60%, transparent);
+  border: 1px solid var(--ew-border-strong);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  font-family: var(--ew-font-mono);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.timeline-rec:hover { color: var(--ew-warm); border-color: var(--ew-warm); }
+.timeline-rec.recording {
+  background: var(--ew-warm);
+  color: var(--ew-text-inverse);
+  border-color: var(--ew-warm);
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rec-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ew-warm) 45%, transparent); }
+  50%      { box-shadow: 0 0 0 6px color-mix(in oklab, var(--ew-warm) 0%, transparent); }
+}
+.timeline-track {
+  flex: 1; height: 6px;
+  background: var(--ew-surface-sunken);
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+}
+.timeline-fill {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  background: var(--ew-primary);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.timeline-label {
+  font-family: var(--ew-font-mono); font-size: 10px;
+  color: var(--ew-text-muted); letter-spacing: 0.08em;
+  min-width: 180px; text-align: right;
+}
+.timeline-speed {
+  display: flex; gap: 1px;
+  background: var(--ew-border); border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-sm); overflow: hidden;
+}
+.timeline-speed span {
+  padding: 4px 8px;
+  background: var(--ew-surface);
+  font-family: var(--ew-font-mono); font-size: 9px;
+  letter-spacing: 0.06em; color: var(--ew-text-muted);
+  cursor: pointer; user-select: none;
+}
+.timeline-speed span.on { background: var(--ew-primary-soft); color: var(--ew-primary); }
+
+/* ============ SCROLLBARS ============ */
+
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-thumb { background: var(--ew-border-strong); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--ew-text-muted); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* ============ UTILITIES ============ */
+
+.mono { font-family: var(--ew-font-mono); }
+.u-mono { font-family: var(--ew-font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ew-text-faint); }
+.u-dim { color: var(--ew-text-muted); }
+.u-muted { color: var(--ew-text-faint); }
+.u-action { color: var(--ew-primary); }
+.u-seal { color: var(--ew-warm); }
+.u-hr { height: 1px; background: var(--ew-border); margin: var(--ew-space-3) 0; border: none; }
+
 </style>
 </head>
 <body class="ew" data-active-screen="worldview">
@@ -1196,6 +1402,13 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
         <span class="mp-opt on" data-mode="3d">3D</span>
         <span class="mp-opt"    data-mode="2d">2D</span>
         <span class="mp-opt"    data-mode="cv">CV</span>
+      </div>
+      <div class="shader-picker" id="shader-picker" title="Post-processing shader">
+        <span class="sp-opt on" data-shader="0">0·CLN</span>
+        <span class="sp-opt"    data-shader="1">1·NVG</span>
+        <span class="sp-opt"    data-shader="2">2·FLR</span>
+        <span class="sp-opt"    data-shader="3">3·CRT</span>
+        <span class="sp-opt"    data-shader="4">4·OPS</span>
       </div>
       <button class="btn pull-live-btn" id="btn-pull-live" title="Force immediate refresh of all OSINT sources (bypasses polling)">
         <span class="pl-pulse"></span>PULL LIVE
@@ -1465,7 +1678,25 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
     });
   });
 
+  // --- Screen param from cross-page navigation (e.g. jarvis -> /?screen=inspector) ---
+  const urlScreen = new URLSearchParams(location.search).get('screen');
+  if (urlScreen && urlScreen !== 'worldview' && urlScreen !== 'consigliere') {
+    const target = document.querySelector('.son-tab[data-screen="'+urlScreen+'"]');
+    if (target) target.click();
+  }
+
   // Clock is managed by app.js (SGT format, writes to #meta-clock)
+
+  // --- Layers panel: column collapse ---
+  const layersCol = document.getElementById('layers-collapse');
+  if (layersCol) {
+    layersCol.addEventListener('click', () => {
+      const b = document.body;
+      const collapsed = b.getAttribute('data-collapsed-layers') === '1';
+      b.setAttribute('data-collapsed-layers', collapsed ? '0' : '1');
+      layersCol.textContent = collapsed ? '‹' : '›';
+    });
+  }
 
   // --- Feed rail: column collapse ---
   const feedsCol = document.getElementById('feeds-collapse');
@@ -1577,6 +1808,36 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
       }
     }
   };
+
+  // --- Shader picker ---
+  const shaderPicker = document.getElementById('shader-picker');
+  if (shaderPicker) {
+    shaderPicker.addEventListener('click', e => {
+      const opt = e.target.closest('.sp-opt');
+      if (!opt) return;
+      shaderPicker.querySelectorAll('.sp-opt').forEach(o => o.classList.remove('on'));
+      opt.classList.add('on');
+      const idx = parseInt(opt.dataset.shader, 10);
+      // Dispatch event for app.js shader system
+      window.dispatchEvent(new CustomEvent('son-shader-change', { detail: { shader: idx } }));
+    });
+  }
+
+  // --- Band column single-click collapse ---
+  document.querySelectorAll('.band-col-head').forEach(head => {
+    head.addEventListener('click', () => {
+      const col = head.closest('.band-col');
+      if (col) {
+        col.classList.toggle('collapsed');
+        const caret = head.querySelector('.bc-caret');
+        if (caret) caret.textContent = col.classList.contains('collapsed') ? '▸' : '▾';
+      }
+    });
+    // Double-click folds ALL bands
+    head.addEventListener('dblclick', () => {
+      document.body.classList.toggle('bands-folded');
+    });
+  });
 })();
 </script>
 
