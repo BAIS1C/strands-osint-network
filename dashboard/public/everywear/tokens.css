@@ -1,0 +1,444 @@
+/* ═══════════════════════════════════════════════════════════════════
+   EVERYWEAR OS — DESIGN TOKENS
+   ───────────────────────────────────────────────────────────────────
+   Three skins × two modes. Apps inherit the active skin via
+   CSS custom properties. Switch skin by toggling data-skin on <html>
+   or <body>. Switch mode with data-mode.
+
+   Usage:
+     <html data-skin="classic" data-mode="dark">
+     <html data-skin="refined" data-mode="light">
+     <html data-skin="terminal" data-mode="dark">
+
+   All values resolve to --ew-* tokens. Apps never use raw hex.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────
+   FONT IMPORTS (all free, Google Fonts)
+   Self-host in production.
+   ───────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* ═══════════════════════════════════════════════════════════════════
+   GLOBAL TOKENS — constant across all skins
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Spacing (4px base) */
+  --ew-space-1: 4px;
+  --ew-space-2: 8px;
+  --ew-space-3: 12px;
+  --ew-space-4: 16px;
+  --ew-space-5: 20px;
+  --ew-space-6: 24px;
+  --ew-space-8: 32px;
+  --ew-space-10: 40px;
+  --ew-space-12: 48px;
+  --ew-space-16: 64px;
+  --ew-space-20: 80px;
+  --ew-space-24: 96px;
+
+  /* Type scale (type-safe steps, not fluid) */
+  --ew-text-xs: 11px;
+  --ew-text-sm: 13px;
+  --ew-text-base: 15px;
+  --ew-text-md: 17px;
+  --ew-text-lg: 20px;
+  --ew-text-xl: 24px;
+  --ew-text-2xl: 32px;
+  --ew-text-3xl: 44px;
+  --ew-text-4xl: 60px;
+  --ew-text-5xl: 84px;
+
+  /* Line height */
+  --ew-leading-tight: 1.15;
+  --ew-leading-snug: 1.35;
+  --ew-leading-normal: 1.55;
+  --ew-leading-loose: 1.75;
+
+  /* Letter spacing — replaces undisciplined tracking */
+  --ew-track-tight: -0.015em;
+  --ew-track-normal: 0;
+  --ew-track-wide: 0.04em;
+  --ew-track-wider: 0.12em;
+  --ew-track-widest: 0.25em;
+
+  /* Radius */
+  --ew-radius-none: 0;
+  --ew-radius-sm: 2px;
+  --ew-radius: 4px;
+  --ew-radius-md: 6px;
+  --ew-radius-lg: 10px;
+  --ew-radius-full: 999px;
+
+  /* Borders */
+  --ew-border-hair: 1px;
+  --ew-border-thin: 1.5px;
+  --ew-border-thick: 2px;
+
+  /* Z-index scale */
+  --ew-z-base: 0;
+  --ew-z-raised: 10;
+  --ew-z-dropdown: 100;
+  --ew-z-sticky: 500;
+  --ew-z-modal: 1000;
+  --ew-z-toast: 2000;
+  --ew-z-top: 9999;
+
+  /* Motion — easing */
+  --ew-ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ew-ease-in: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  --ew-ease-in-out: cubic-bezier(0.65, 0.05, 0.36, 1);
+  --ew-ease-sharp: cubic-bezier(0.4, 0, 0.6, 1);
+
+  /* Motion — duration */
+  --ew-dur-instant: 80ms;
+  --ew-dur-quick: 160ms;
+  --ew-dur-base: 240ms;
+  --ew-dur-slow: 380ms;
+  --ew-dur-deliberate: 560ms;
+
+  /* Shadows (used sparingly; skin re-weights alpha) */
+  --ew-shadow-subtle: 0 1px 2px rgba(0,0,0,0.08);
+  --ew-shadow-raised: 0 4px 12px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
+  --ew-shadow-float: 0 12px 32px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
+  --ew-shadow-dialog: 0 24px 64px rgba(0,0,0,0.24), 0 4px 12px rgba(0,0,0,0.10);
+
+  /* Status colors (constant across skins, tinted lightly per mode) */
+  --ew-danger: oklch(64% 0.22 25);
+  --ew-warning: oklch(78% 0.15 75);
+  --ew-success: oklch(70% 0.16 155);
+  --ew-info: oklch(72% 0.13 230);
+}
+
+/* Reduced motion respects user OS setting */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ew-dur-instant: 0ms;
+    --ew-dur-quick: 0ms;
+    --ew-dur-base: 0ms;
+    --ew-dur-slow: 0ms;
+    --ew-dur-deliberate: 0ms;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SKIN: CLASSIC — the Strands cyber-family default
+   Refined cyberpunk; cyan primary; Rajdhani body; Orbitron display.
+   Dark is the canonical mode; light is its mirror.
+   ═══════════════════════════════════════════════════════════════════ */
+
+[data-skin="classic"] {
+  /* Typography roles */
+  --ew-font-display: 'Orbitron', system-ui, sans-serif;
+  --ew-font-body: 'Rajdhani', system-ui, sans-serif;
+  --ew-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ew-font-weight-body: 400;
+  --ew-font-weight-strong: 600;
+  --ew-font-weight-display: 600;
+
+  /* Hue anchor (cyan) — used by color-mix for accents */
+  --ew-hue-primary: 195;
+  --ew-hue-warm: 35; /* reserved amber */
+
+  /* Motion personality */
+  --ew-motion-personality-speed: 1;
+}
+
+[data-skin="classic"][data-mode="dark"],
+[data-skin="classic"]:not([data-mode]) {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --ew-bg: oklch(14% 0.015 240);
+  --ew-surface: oklch(18% 0.018 240);
+  --ew-surface-raised: oklch(22% 0.022 240);
+  --ew-surface-overlay: oklch(26% 0.024 240);
+  --ew-surface-sunken: oklch(11% 0.012 240);
+
+  /* Text */
+  --ew-text: oklch(96% 0.01 240);
+  --ew-text-muted: oklch(74% 0.015 240);
+  --ew-text-faint: oklch(56% 0.02 240);
+  --ew-text-inverse: oklch(14% 0.015 240);
+
+  /* Borders */
+  --ew-border: oklch(28% 0.02 240);
+  --ew-border-strong: oklch(40% 0.03 240);
+  --ew-border-faint: oklch(22% 0.015 240);
+
+  /* Primary (cyan) — single color, 4 roles */
+  --ew-primary: oklch(72% 0.15 195);
+  --ew-primary-hover: oklch(76% 0.17 195);
+  --ew-primary-active: oklch(66% 0.14 195);
+  --ew-primary-fg: oklch(14% 0.015 240);
+  --ew-primary-soft: oklch(72% 0.15 195 / 0.14);
+
+  /* Warm accent (amber — reserved, used for warnings or the resistance motif) */
+  --ew-warm: oklch(76% 0.14 75);
+  --ew-warm-soft: oklch(76% 0.14 75 / 0.16);
+
+  /* Glow — used sparingly on focus/hero elements */
+  --ew-glow-primary: 0 0 0 1px oklch(72% 0.15 195 / 0.4), 0 0 24px oklch(72% 0.15 195 / 0.25);
+  --ew-glow-warm: 0 0 24px oklch(76% 0.14 75 / 0.3);
+
+  /* Chrome (window/taskbar) */
+  --ew-chrome-bg: oklch(16% 0.016 240);
+  --ew-chrome-border: oklch(24% 0.02 240);
+  --ew-titlebar-bg: oklch(20% 0.02 240);
+}
+
+[data-skin="classic"][data-mode="light"] {
+  color-scheme: light;
+
+  --ew-bg: oklch(97% 0.005 240);
+  --ew-surface: oklch(100% 0 0);
+  --ew-surface-raised: oklch(100% 0 0);
+  --ew-surface-overlay: oklch(99% 0.003 240);
+  --ew-surface-sunken: oklch(94% 0.008 240);
+
+  --ew-text: oklch(16% 0.015 240);
+  --ew-text-muted: oklch(42% 0.02 240);
+  --ew-text-faint: oklch(62% 0.015 240);
+  --ew-text-inverse: oklch(100% 0 0);
+
+  --ew-border: oklch(88% 0.008 240);
+  --ew-border-strong: oklch(76% 0.012 240);
+  --ew-border-faint: oklch(93% 0.005 240);
+
+  --ew-primary: oklch(54% 0.16 195);
+  --ew-primary-hover: oklch(48% 0.17 195);
+  --ew-primary-active: oklch(42% 0.16 195);
+  --ew-primary-fg: oklch(100% 0 0);
+  --ew-primary-soft: oklch(54% 0.16 195 / 0.12);
+
+  --ew-warm: oklch(62% 0.15 60);
+  --ew-warm-soft: oklch(62% 0.15 60 / 0.14);
+
+  --ew-glow-primary: 0 0 0 3px oklch(54% 0.16 195 / 0.18);
+  --ew-glow-warm: 0 0 0 3px oklch(62% 0.15 60 / 0.2);
+
+  --ew-chrome-bg: oklch(99% 0.003 240);
+  --ew-chrome-border: oklch(88% 0.008 240);
+  --ew-titlebar-bg: oklch(95% 0.006 240);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SKIN: REFINED — calmer Classic for investor/creator default
+   Lower saturation, less glow, more breathing room.
+   Same typography; different dial positions.
+   ═══════════════════════════════════════════════════════════════════ */
+
+[data-skin="refined"] {
+  /* Refined — editorial voice. Rajdhani promoted to display for a quieter read. */
+  --ew-font-display: 'Rajdhani', system-ui, sans-serif;
+  --ew-font-body: 'Rajdhani', system-ui, sans-serif;
+  --ew-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ew-font-weight-body: 400;
+  --ew-font-weight-strong: 500;
+  --ew-font-weight-display: 500;
+
+  --ew-hue-primary: 200;
+  --ew-hue-warm: 40;
+
+  --ew-motion-personality-speed: 1.1;
+}
+
+[data-skin="refined"][data-mode="dark"],
+[data-skin="refined"]:not([data-mode]) {
+  color-scheme: dark;
+
+  --ew-bg: oklch(16% 0.008 240);
+  --ew-surface: oklch(20% 0.01 240);
+  --ew-surface-raised: oklch(24% 0.012 240);
+  --ew-surface-overlay: oklch(28% 0.014 240);
+  --ew-surface-sunken: oklch(13% 0.006 240);
+
+  --ew-text: oklch(94% 0.006 240);
+  --ew-text-muted: oklch(72% 0.008 240);
+  --ew-text-faint: oklch(54% 0.01 240);
+  --ew-text-inverse: oklch(16% 0.008 240);
+
+  --ew-border: oklch(30% 0.01 240);
+  --ew-border-strong: oklch(44% 0.014 240);
+  --ew-border-faint: oklch(24% 0.008 240);
+
+  --ew-primary: oklch(70% 0.09 200);
+  --ew-primary-hover: oklch(74% 0.1 200);
+  --ew-primary-active: oklch(64% 0.085 200);
+  --ew-primary-fg: oklch(16% 0.008 240);
+  --ew-primary-soft: oklch(70% 0.09 200 / 0.12);
+
+  --ew-warm: oklch(78% 0.1 80);
+  --ew-warm-soft: oklch(78% 0.1 80 / 0.14);
+
+  --ew-glow-primary: 0 0 0 1px oklch(70% 0.09 200 / 0.3);
+  --ew-glow-warm: 0 0 0 1px oklch(78% 0.1 80 / 0.3);
+
+  --ew-chrome-bg: oklch(18% 0.008 240);
+  --ew-chrome-border: oklch(26% 0.01 240);
+  --ew-titlebar-bg: oklch(22% 0.012 240);
+}
+
+[data-skin="refined"][data-mode="light"] {
+  color-scheme: light;
+
+  --ew-bg: oklch(98% 0.003 240);
+  --ew-surface: oklch(100% 0 0);
+  --ew-surface-raised: oklch(100% 0 0);
+  --ew-surface-overlay: oklch(99% 0.002 240);
+  --ew-surface-sunken: oklch(95% 0.005 240);
+
+  --ew-text: oklch(20% 0.01 240);
+  --ew-text-muted: oklch(46% 0.012 240);
+  --ew-text-faint: oklch(66% 0.008 240);
+  --ew-text-inverse: oklch(100% 0 0);
+
+  --ew-border: oklch(90% 0.005 240);
+  --ew-border-strong: oklch(78% 0.008 240);
+  --ew-border-faint: oklch(94% 0.003 240);
+
+  --ew-primary: oklch(48% 0.12 200);
+  --ew-primary-hover: oklch(42% 0.13 200);
+  --ew-primary-active: oklch(36% 0.12 200);
+  --ew-primary-fg: oklch(100% 0 0);
+  --ew-primary-soft: oklch(48% 0.12 200 / 0.1);
+
+  --ew-warm: oklch(58% 0.13 60);
+  --ew-warm-soft: oklch(58% 0.13 60 / 0.12);
+
+  --ew-glow-primary: 0 0 0 3px oklch(48% 0.12 200 / 0.15);
+  --ew-glow-warm: 0 0 0 3px oklch(58% 0.13 60 / 0.16);
+
+  --ew-chrome-bg: oklch(100% 0 0);
+  --ew-chrome-border: oklch(90% 0.005 240);
+  --ew-titlebar-bg: oklch(96% 0.004 240);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SKIN: TERMINAL — phosphor mode, CRT-adjacent
+   Monospace everywhere; amber on near-black (dark) / black on cream (light).
+   Dense, confident, for power users.
+   ═══════════════════════════════════════════════════════════════════ */
+
+[data-skin="terminal"] {
+  /* Terminal — phosphor mono, CRT-adjacent. Single family. */
+  --ew-font-display: 'JetBrains Mono', ui-monospace, monospace;
+  --ew-font-body: 'JetBrains Mono', ui-monospace, monospace;
+  --ew-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ew-font-weight-body: 400;
+  --ew-font-weight-strong: 700;
+  --ew-font-weight-display: 500;
+
+  --ew-hue-primary: 55;
+  --ew-hue-warm: 25;
+
+  --ew-motion-personality-speed: 0.8;
+}
+
+[data-skin="terminal"][data-mode="dark"],
+[data-skin="terminal"]:not([data-mode]) {
+  color-scheme: dark;
+
+  --ew-bg: oklch(10% 0.008 55);
+  --ew-surface: oklch(13% 0.01 55);
+  --ew-surface-raised: oklch(17% 0.012 55);
+  --ew-surface-overlay: oklch(20% 0.014 55);
+  --ew-surface-sunken: oklch(8% 0.006 55);
+
+  --ew-text: oklch(88% 0.14 80);
+  --ew-text-muted: oklch(70% 0.12 80);
+  --ew-text-faint: oklch(52% 0.08 80);
+  --ew-text-inverse: oklch(10% 0.008 55);
+
+  --ew-border: oklch(32% 0.04 60);
+  --ew-border-strong: oklch(52% 0.08 70);
+  --ew-border-faint: oklch(22% 0.02 55);
+
+  --ew-primary: oklch(84% 0.16 80);
+  --ew-primary-hover: oklch(88% 0.17 80);
+  --ew-primary-active: oklch(76% 0.14 80);
+  --ew-primary-fg: oklch(10% 0.008 55);
+  --ew-primary-soft: oklch(84% 0.16 80 / 0.14);
+
+  --ew-warm: oklch(74% 0.18 30);
+  --ew-warm-soft: oklch(74% 0.18 30 / 0.16);
+
+  --ew-glow-primary: 0 0 12px oklch(84% 0.16 80 / 0.35), 0 0 2px oklch(84% 0.16 80 / 0.6);
+  --ew-glow-warm: 0 0 12px oklch(74% 0.18 30 / 0.35);
+
+  --ew-chrome-bg: oklch(11% 0.008 55);
+  --ew-chrome-border: oklch(28% 0.03 60);
+  --ew-titlebar-bg: oklch(14% 0.012 55);
+}
+
+[data-skin="terminal"][data-mode="light"] {
+  color-scheme: light;
+
+  --ew-bg: oklch(96% 0.015 85);        /* paper-cream */
+  --ew-surface: oklch(98% 0.008 85);
+  --ew-surface-raised: oklch(100% 0 0);
+  --ew-surface-overlay: oklch(99% 0.005 85);
+  --ew-surface-sunken: oklch(92% 0.02 85);
+
+  --ew-text: oklch(18% 0.02 40);
+  --ew-text-muted: oklch(40% 0.015 40);
+  --ew-text-faint: oklch(60% 0.012 40);
+  --ew-text-inverse: oklch(98% 0.008 85);
+
+  --ew-border: oklch(82% 0.015 60);
+  --ew-border-strong: oklch(62% 0.02 40);
+  --ew-border-faint: oklch(90% 0.01 70);
+
+  --ew-primary: oklch(46% 0.16 35);
+  --ew-primary-hover: oklch(40% 0.17 35);
+  --ew-primary-active: oklch(34% 0.16 35);
+  --ew-primary-fg: oklch(98% 0.008 85);
+  --ew-primary-soft: oklch(46% 0.16 35 / 0.1);
+
+  --ew-warm: oklch(52% 0.18 25);
+  --ew-warm-soft: oklch(52% 0.18 25 / 0.12);
+
+  --ew-glow-primary: 0 0 0 2px oklch(46% 0.16 35 / 0.18);
+  --ew-glow-warm: 0 0 0 2px oklch(52% 0.18 25 / 0.2);
+
+  --ew-chrome-bg: oklch(94% 0.018 80);
+  --ew-chrome-border: oklch(82% 0.015 60);
+  --ew-titlebar-bg: oklch(90% 0.022 80);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BASELINE RESET — apply selectively, only inside .ew scope.
+   This lets tokens coexist with host pages that have their own reset.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.ew, .ew * {
+  box-sizing: border-box;
+}
+
+.ew {
+  background: var(--ew-bg);
+  color: var(--ew-text);
+  font-family: var(--ew-font-body);
+  font-weight: var(--ew-font-weight-body);
+  font-size: var(--ew-text-base);
+  line-height: var(--ew-leading-normal);
+  letter-spacing: var(--ew-track-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background var(--ew-dur-slow) var(--ew-ease-out),
+              color var(--ew-dur-slow) var(--ew-ease-out);
+}
+
+.ew ::selection {
+  background: var(--ew-primary-soft);
+  color: var(--ew-text);
+}
+
+/* Utility classes — optional, for quick prototyping */
+.ew-display { font-family: var(--ew-font-display); font-weight: var(--ew-font-weight-display); letter-spacing: var(--ew-track-wide); }
+.ew-mono    { font-family: var(--ew-font-mono); }
+.ew-muted   { color: var(--ew-text-muted); }
+.ew-faint   { color: var(--ew-text-faint); }
+.ew-primary-fg { color: var(--ew-primary); }
+.ew-warm-fg    { color: var(--ew-warm); }

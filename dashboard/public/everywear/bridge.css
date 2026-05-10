@@ -1,0 +1,77 @@
+/* ═══════════════════════════════════════════════════════════════════
+   EVERYWEAR BRIDGE — remaps variant-d tokens to --ew-* tokens
+   ───────────────────────────────────────────────────────────────────
+   This file sits AFTER everywear/tokens.css and BEFORE variant-d.css.
+   It overrides variant-d's :root block so every existing component
+   automatically picks up the active EWDS skin palette.
+
+   Once the full EWDS migration is complete (all components using
+   --ew-* directly), this file and variant-d.css can be removed.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Surfaces */
+  --bg:          var(--ew-bg);
+  --bg-0:        var(--ew-bg);
+  --sunken:      var(--ew-surface-sunken);
+  --panel:       var(--ew-surface);
+  --card:        var(--ew-surface-raised);
+  --hover:       var(--ew-surface-overlay);
+  --line:        var(--ew-border);
+  --line-bright: var(--ew-border-strong);
+
+  /* Actions */
+  --action:     var(--ew-primary);
+  --action-dim: var(--ew-primary-soft);
+  --action-ink: var(--ew-primary-fg);
+
+  /* Semantic */
+  --seal:     var(--ew-warm);
+  --seal-dim: var(--ew-warm-soft);
+  --warn:     var(--ew-warning);
+  --human:    var(--ew-warm);
+  --ok:       var(--ew-success);
+  --info:     var(--ew-info);
+
+  /* Text */
+  --ink:   var(--ew-text);
+  --dim:   var(--ew-text-muted);
+  --muted: var(--ew-text-faint);
+  --faint: color-mix(in oklab, var(--ew-text-faint) 60%, transparent);
+
+  /* Type — remap to EWDS font stack */
+  --ff-body: var(--ew-font-body);
+  --ff-sans: var(--ew-font-body);
+  --ff-mono: var(--ew-font-mono);
+  --ff-cjk:  var(--ew-font-display);
+
+  /* Radii */
+  --r-sm: var(--ew-radius-sm);
+  --r-md: var(--ew-radius-md);
+  --r-lg: var(--ew-radius-lg);
+  --r-xl: var(--ew-radius-lg);
+
+  /* Spacing */
+  --s-1: var(--ew-space-1);
+  --s-2: var(--ew-space-2);
+  --s-3: var(--ew-space-3);
+  --s-4: var(--ew-space-4);
+  --s-5: var(--ew-space-5);
+  --s-6: var(--ew-space-6);
+  --s-7: var(--ew-space-12);
+  --s-8: var(--ew-space-20);
+}
+
+/* Density modifier (compact is operator default for terminal skin) */
+[data-density="compact"] {
+  --ew-space-3: 8px;
+  --ew-space-4: 10px;
+  --ew-space-5: 12px;
+  --ew-space-6: 16px;
+}
+[data-density="roomy"] {
+  --ew-space-3: 14px;
+  --ew-space-4: 18px;
+  --ew-space-5: 22px;
+  --ew-space-6: 28px;
+}

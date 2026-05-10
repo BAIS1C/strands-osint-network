@@ -1,0 +1,891 @@
+/* ═══════════════════════════════════════════════════════════════════
+   EVERYWEAR OS — COMPONENT KIT
+   ───────────────────────────────────────────────────────────────────
+   All components read from tokens.css. Zero raw hex. Zero pixel
+   literals that should be tokens. Every component works in all three
+   skins (Classic / Refined / Terminal) × both modes (light / dark).
+
+   Scope: everything is scoped under .ew so the kit never leaks.
+   Use:  <div class="ew" data-skin="classic" data-mode="dark"> ... </div>
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────
+   1. TYPOGRAPHY — display / body / mono roles
+   ───────────────────────────────────────── */
+
+.ew h1, .ew h2, .ew h3, .ew h4, .ew h5, .ew h6 {
+  font-family: var(--ew-font-display);
+  font-weight: var(--ew-font-weight-display);
+  letter-spacing: var(--ew-track-wide);
+  line-height: var(--ew-leading-tight);
+  margin: 0;
+  color: var(--ew-text);
+}
+.ew h1 { font-size: var(--ew-text-4xl); letter-spacing: var(--ew-track-wide); text-transform: uppercase; font-weight: 900; }
+.ew h2 { font-size: var(--ew-text-2xl); letter-spacing: var(--ew-track-wide); text-transform: uppercase; font-weight: 700; }
+.ew h3 { font-size: var(--ew-text-xl);  letter-spacing: var(--ew-track-wider); text-transform: uppercase; font-weight: 700; }
+.ew h4 { font-size: var(--ew-text-lg);  letter-spacing: var(--ew-track-wider); text-transform: uppercase; font-weight: 600; }
+.ew h5 { font-size: var(--ew-text-md);  letter-spacing: var(--ew-track-wider); text-transform: uppercase; font-weight: 600; }
+.ew h6 { font-size: var(--ew-text-sm);  font-family: var(--ew-font-mono); letter-spacing: var(--ew-track-widest); text-transform: uppercase; font-weight: 500; color: var(--ew-text-muted); }
+
+.ew p { margin: 0; font-size: var(--ew-text-base); line-height: var(--ew-leading-normal); color: var(--ew-text); }
+.ew p + p { margin-top: var(--ew-space-3); }
+.ew .ew-lead { font-size: var(--ew-text-md); line-height: var(--ew-leading-snug); color: var(--ew-text-muted); }
+.ew .ew-small { font-size: var(--ew-text-sm); font-weight: var(--ew-font-weight-strong); }
+.ew .ew-xs    { font-size: var(--ew-text-xs); font-weight: var(--ew-font-weight-strong); }
+
+.ew .ew-eyebrow,
+.ew .ew-label {
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-widest);
+  text-transform: uppercase;
+  color: var(--ew-text-muted);
+}
+.ew .ew-meta {
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  color: var(--ew-text-faint);
+}
+
+.ew code, .ew kbd, .ew pre, .ew samp {
+  font-family: var(--ew-font-mono);
+  font-size: 0.92em;
+}
+.ew kbd {
+  display: inline-block;
+  padding: 2px var(--ew-space-2);
+  background: var(--ew-surface-raised);
+  border: 1px solid var(--ew-border);
+  border-bottom-width: 2px;
+  border-radius: var(--ew-radius-sm);
+  font-size: var(--ew-text-xs);
+  color: var(--ew-text-muted);
+}
+
+.ew a {
+  color: var(--ew-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in oklab, var(--ew-primary) 40%, transparent);
+  transition: text-decoration-color var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew a:hover { text-decoration-color: var(--ew-primary); }
+
+.ew hr {
+  border: none;
+  border-top: 1px solid var(--ew-border);
+  margin: var(--ew-space-6) 0;
+}
+
+/* ─────────────────────────────────────────
+   2. BUTTONS — primary, secondary, ghost, icon
+   ─────────────────────────────────────────
+   Classic/Refined: minimal radius; Terminal: sharp corners, all-caps.
+   All share: focus ring, hover, active, disabled states.
+   ───────────────────────────────────────── */
+
+.ew-btn {
+  --_btn-bg: var(--ew-surface-raised);
+  --_btn-fg: var(--ew-text);
+  --_btn-border: var(--ew-border);
+  --_btn-ring: transparent;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ew-space-2);
+  padding: 0 var(--ew-space-4);
+  height: 36px;
+  min-width: 0;
+
+  font-family: var(--ew-font-body);
+  font-size: var(--ew-text-sm);
+  font-weight: var(--ew-font-weight-strong);
+  letter-spacing: var(--ew-track-wide);
+  line-height: 1;
+  color: var(--_btn-fg);
+
+  background: var(--_btn-bg);
+  border: 1px solid var(--_btn-border);
+  border-radius: var(--ew-radius-md);
+  box-shadow: 0 0 0 0 var(--_btn-ring);
+
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  transition:
+    background var(--ew-dur-quick) var(--ew-ease-out),
+    border-color var(--ew-dur-quick) var(--ew-ease-out),
+    color var(--ew-dur-quick) var(--ew-ease-out),
+    box-shadow var(--ew-dur-quick) var(--ew-ease-out),
+    transform var(--ew-dur-instant) var(--ew-ease-sharp);
+}
+
+.ew-btn:hover:not(:disabled) { background: var(--ew-surface-overlay); border-color: var(--ew-border-strong); }
+.ew-btn:active:not(:disabled) { transform: translateY(1px); }
+.ew-btn:focus-visible { outline: none; box-shadow: var(--ew-glow-primary); }
+.ew-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Variants */
+.ew-btn--primary {
+  --_btn-bg: var(--ew-primary);
+  --_btn-fg: var(--ew-primary-fg);
+  --_btn-border: var(--ew-primary);
+  font-weight: 600;
+}
+.ew-btn--primary:hover:not(:disabled) {
+  background: var(--ew-primary-hover);
+  border-color: var(--ew-primary-hover);
+}
+.ew-btn--primary:active:not(:disabled) {
+  background: var(--ew-primary-active);
+  border-color: var(--ew-primary-active);
+}
+
+.ew-btn--ghost {
+  --_btn-bg: transparent;
+  --_btn-border: transparent;
+  --_btn-fg: var(--ew-text-muted);
+}
+.ew-btn--ghost:hover:not(:disabled) {
+  background: var(--ew-primary-soft);
+  color: var(--ew-text);
+  border-color: transparent;
+}
+
+.ew-btn--danger {
+  --_btn-bg: transparent;
+  --_btn-fg: var(--ew-danger);
+  --_btn-border: color-mix(in oklab, var(--ew-danger) 40%, transparent);
+}
+.ew-btn--danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--ew-danger) 12%, transparent);
+  border-color: var(--ew-danger);
+}
+
+/* Sizes */
+.ew-btn--sm { height: 28px; padding: 0 var(--ew-space-3); font-size: var(--ew-text-xs); }
+.ew-btn--lg { height: 44px; padding: 0 var(--ew-space-6); font-size: var(--ew-text-base); }
+
+/* Icon-only */
+.ew-btn--icon {
+  width: 36px; padding: 0; aspect-ratio: 1;
+}
+.ew-btn--icon.ew-btn--sm { width: 28px; }
+.ew-btn--icon.ew-btn--lg { width: 44px; }
+
+/* Skin overrides */
+[data-skin="classic"] .ew-btn {
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  border-radius: var(--ew-radius-sm);
+}
+[data-skin="classic"] .ew-btn--primary {
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  border-radius: 0;
+}
+[data-skin="terminal"] .ew-btn {
+  font-family: var(--ew-font-mono);
+  font-weight: 700;
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  border-radius: 0;
+}
+[data-skin="terminal"] .ew-btn--primary {
+  background: transparent;
+  color: var(--ew-primary);
+  border: 1px solid var(--ew-primary);
+  box-shadow: inset 0 0 0 1px var(--ew-primary);
+}
+[data-skin="terminal"] .ew-btn--primary:hover:not(:disabled) {
+  background: var(--ew-primary);
+  color: var(--ew-primary-fg);
+}
+
+/* ─────────────────────────────────────────
+   3. INPUTS — text, textarea, select, checkbox, radio, switch
+   ───────────────────────────────────────── */
+
+.ew-input,
+.ew-textarea,
+.ew-select {
+  display: block;
+  width: 100%;
+  padding: var(--ew-space-2) var(--ew-space-3);
+  height: 36px;
+
+  font-family: var(--ew-font-body);
+  font-size: var(--ew-text-sm);
+  font-weight: var(--ew-font-weight-body);
+  color: var(--ew-text);
+  line-height: var(--ew-leading-snug);
+
+  background: var(--ew-surface-sunken);
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-md);
+  box-shadow: inset 0 1px 0 rgba(0,0,0,0.04);
+  outline: none;
+
+  transition:
+    border-color var(--ew-dur-quick) var(--ew-ease-out),
+    box-shadow var(--ew-dur-quick) var(--ew-ease-out),
+    background var(--ew-dur-quick) var(--ew-ease-out);
+}
+
+.ew-textarea { height: auto; min-height: 96px; resize: vertical; padding: var(--ew-space-3); }
+
+.ew-input::placeholder,
+.ew-textarea::placeholder { color: var(--ew-text-faint); }
+
+.ew-input:hover,
+.ew-textarea:hover,
+.ew-select:hover { border-color: var(--ew-border-strong); }
+
+.ew-input:focus-visible,
+.ew-textarea:focus-visible,
+.ew-select:focus-visible {
+  border-color: var(--ew-primary);
+  box-shadow: var(--ew-glow-primary);
+  background: var(--ew-surface);
+}
+
+.ew-input:disabled { opacity: 0.5; cursor: not-allowed; }
+.ew-input[aria-invalid="true"] { border-color: var(--ew-danger); }
+
+/* Select — chevron is an inline SVG background */
+.ew-select {
+  appearance: none;
+  padding-right: var(--ew-space-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.5'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--ew-space-3) center;
+  background-size: 14px;
+  color: var(--ew-text);
+}
+
+/* Checkbox + radio — fully custom, token-driven */
+.ew-check,
+.ew-radio {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  background: var(--ew-surface-sunken);
+  border: 1px solid var(--ew-border-strong);
+  border-radius: var(--ew-radius-sm);
+  cursor: pointer;
+  transition: all var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-radio { border-radius: var(--ew-radius-full); }
+
+.ew-check::before,
+.ew-radio::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: transform var(--ew-dur-quick) var(--ew-ease-out);
+  background: var(--ew-primary-fg);
+}
+.ew-check::before { clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+.ew-radio::before { border-radius: var(--ew-radius-full); }
+
+.ew-check:checked,
+.ew-radio:checked {
+  background: var(--ew-primary);
+  border-color: var(--ew-primary);
+}
+.ew-check:checked::before,
+.ew-radio:checked::before { transform: scale(1); }
+
+.ew-check:focus-visible,
+.ew-radio:focus-visible { box-shadow: var(--ew-glow-primary); }
+
+/* Switch */
+.ew-switch {
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--ew-surface-sunken);
+  border: 1px solid var(--ew-border-strong);
+  border-radius: var(--ew-radius-full);
+  cursor: pointer;
+  transition: background var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-switch::before {
+  content: "";
+  position: absolute;
+  top: 1px; left: 1px;
+  width: 16px; height: 16px;
+  background: var(--ew-text-muted);
+  border-radius: var(--ew-radius-full);
+  transition: transform var(--ew-dur-quick) var(--ew-ease-out), background var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-switch:checked { background: var(--ew-primary); border-color: var(--ew-primary); }
+.ew-switch:checked::before { transform: translateX(16px); background: var(--ew-primary-fg); }
+.ew-switch:focus-visible { box-shadow: var(--ew-glow-primary); }
+
+/* Form layout helpers */
+.ew-field { display: flex; flex-direction: column; gap: var(--ew-space-1); }
+.ew-field-label {
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  color: var(--ew-text-muted);
+}
+.ew-field-help { font-size: var(--ew-text-xs); color: var(--ew-text-faint); }
+.ew-field-error { font-size: var(--ew-text-xs); color: var(--ew-danger); font-weight: var(--ew-font-weight-strong); }
+
+.ew-inline-field { display: inline-flex; align-items: center; gap: var(--ew-space-2); font-size: var(--ew-text-sm); cursor: pointer; }
+
+/* Skin overrides */
+[data-skin="terminal"] .ew-input,
+[data-skin="terminal"] .ew-textarea,
+[data-skin="terminal"] .ew-select {
+  border-radius: 0;
+  background: var(--ew-bg);
+  font-family: var(--ew-font-mono);
+}
+[data-skin="terminal"] .ew-input:focus-visible { background: var(--ew-bg); }
+
+/* ─────────────────────────────────────────
+   4. CARD + PANEL + BADGE + CHIP
+   ───────────────────────────────────────── */
+
+.ew-card {
+  background: var(--ew-surface);
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-lg);
+  padding: var(--ew-space-5);
+  box-shadow: var(--ew-shadow-raised);
+}
+.ew-card--flat { box-shadow: none; }
+.ew-card--sunken { background: var(--ew-surface-sunken); }
+.ew-card-title {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-text-lg);
+  font-weight: var(--ew-font-weight-display);
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  margin-bottom: var(--ew-space-2);
+}
+.ew-card-body { color: var(--ew-text-muted); font-size: var(--ew-text-sm); line-height: var(--ew-leading-normal); }
+
+[data-skin="classic"] .ew-card {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+}
+[data-skin="terminal"] .ew-card { border-radius: 0; box-shadow: none; }
+
+.ew-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-1);
+  padding: 2px var(--ew-space-2);
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  color: var(--ew-primary);
+  background: var(--ew-primary-soft);
+  border: 1px solid color-mix(in oklab, var(--ew-primary) 30%, transparent);
+  border-radius: var(--ew-radius-sm);
+  line-height: 1.4;
+}
+.ew-badge--warm { color: var(--ew-warm); background: var(--ew-warm-soft); border-color: color-mix(in oklab, var(--ew-warm) 30%, transparent); }
+.ew-badge--danger { color: var(--ew-danger); background: color-mix(in oklab, var(--ew-danger) 12%, transparent); border-color: color-mix(in oklab, var(--ew-danger) 30%, transparent); }
+.ew-badge--success { color: var(--ew-success); background: color-mix(in oklab, var(--ew-success) 12%, transparent); border-color: color-mix(in oklab, var(--ew-success) 30%, transparent); }
+.ew-badge--neutral { color: var(--ew-text-muted); background: var(--ew-surface-raised); border-color: var(--ew-border); }
+
+.ew-badge-dot {
+  width: 6px; height: 6px; border-radius: var(--ew-radius-full);
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.ew-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-1) var(--ew-space-3);
+  font-family: var(--ew-font-body);
+  font-size: var(--ew-text-sm);
+  font-weight: var(--ew-font-weight-strong);
+  color: var(--ew-text);
+  background: var(--ew-surface-raised);
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-full);
+  cursor: pointer;
+  transition: all var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-chip:hover { border-color: var(--ew-border-strong); }
+.ew-chip--on {
+  color: var(--ew-primary);
+  background: var(--ew-primary-soft);
+  border-color: var(--ew-primary);
+}
+[data-skin="classic"] .ew-chip { border-radius: var(--ew-radius-sm); font-family: var(--ew-font-mono); font-size: var(--ew-text-xs); letter-spacing: var(--ew-track-wider); text-transform: uppercase; }
+[data-skin="terminal"] .ew-chip { border-radius: 0; font-family: var(--ew-font-mono); }
+
+/* ─────────────────────────────────────────
+   5. WINDOW CHROME — the OS signature
+   ───────────────────────────────────────── */
+
+.ew-window {
+  background: var(--ew-chrome-bg);
+  border: 1px solid var(--ew-chrome-border);
+  border-radius: var(--ew-radius-lg);
+  box-shadow: var(--ew-shadow-dialog);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+.ew-titlebar {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-2) var(--ew-space-3);
+  height: 32px;
+  background: var(--ew-titlebar-bg);
+  border-bottom: 1px solid var(--ew-chrome-border);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ew-titlebar-title {
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  color: var(--ew-text-muted);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ew-traffic {
+  display: inline-flex;
+  gap: var(--ew-space-2);
+}
+.ew-traffic-dot {
+  width: 12px; height: 12px;
+  border-radius: var(--ew-radius-full);
+  background: var(--ew-border-strong);
+  border: 1px solid color-mix(in oklab, currentColor 0%, transparent);
+  cursor: pointer;
+  transition: background var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-traffic-dot:nth-child(1) { background: oklch(62% 0.19 25); }
+.ew-traffic-dot:nth-child(2) { background: oklch(76% 0.16 75); }
+.ew-traffic-dot:nth-child(3) { background: oklch(70% 0.16 145); }
+
+.ew-window-body {
+  flex: 1;
+  padding: var(--ew-space-5);
+  background: var(--ew-surface);
+  overflow: auto;
+}
+.ew-window-statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-4);
+  padding: var(--ew-space-1) var(--ew-space-3);
+  height: 24px;
+  background: var(--ew-chrome-bg);
+  border-top: 1px solid var(--ew-chrome-border);
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  color: var(--ew-text-faint);
+}
+
+/* Classic: directional corner cut on windows */
+[data-skin="classic"] .ew-window {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+}
+[data-skin="classic"] .ew-traffic-dot {
+  width: 10px; height: 10px;
+  border-radius: 0;
+  background: var(--ew-border-strong);
+}
+[data-skin="classic"] .ew-traffic-dot:nth-child(1) { background: var(--ew-primary); }
+[data-skin="classic"] .ew-traffic-dot:nth-child(2) { background: var(--ew-warm); }
+[data-skin="classic"] .ew-traffic-dot:nth-child(3) { background: var(--ew-border-strong); }
+
+[data-skin="terminal"] .ew-window { border-radius: 0; box-shadow: none; border-width: 2px; }
+[data-skin="terminal"] .ew-titlebar {
+  background: var(--ew-primary);
+  color: var(--ew-primary-fg);
+}
+[data-skin="terminal"] .ew-titlebar-title { color: var(--ew-primary-fg); font-weight: 700; }
+[data-skin="terminal"] .ew-traffic-dot { background: var(--ew-primary-fg); border-radius: 0; width: 10px; height: 10px; }
+
+/* ─────────────────────────────────────────
+   6. TASKBAR — the bottom/top OS strip
+   ───────────────────────────────────────── */
+
+.ew-taskbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-1);
+  padding: var(--ew-space-1) var(--ew-space-2);
+  height: 40px;
+  background: var(--ew-chrome-bg);
+  border-top: 1px solid var(--ew-chrome-border);
+  font-family: var(--ew-font-mono);
+}
+.ew-taskbar--top { border-top: none; border-bottom: 1px solid var(--ew-chrome-border); }
+
+.ew-taskbar-start {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  padding: 0 var(--ew-space-3);
+  height: 32px;
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-text-xs);
+  font-weight: var(--ew-font-weight-display);
+  letter-spacing: var(--ew-track-widest);
+  text-transform: uppercase;
+  color: var(--ew-primary);
+  cursor: pointer;
+  border-radius: var(--ew-radius-sm);
+  transition: background var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-taskbar-start:hover { background: var(--ew-primary-soft); }
+
+.ew-taskbar-divider {
+  width: 1px; height: 20px; background: var(--ew-chrome-border);
+  margin: 0 var(--ew-space-1);
+}
+
+.ew-taskitem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-2);
+  padding: 0 var(--ew-space-3);
+  height: 32px;
+  font-size: var(--ew-text-xs);
+  font-weight: var(--ew-font-weight-strong);
+  color: var(--ew-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ew-radius-sm);
+  cursor: pointer;
+  transition: all var(--ew-dur-quick) var(--ew-ease-out);
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ew-taskitem:hover { background: var(--ew-surface-raised); color: var(--ew-text); }
+.ew-taskitem--active {
+  background: var(--ew-surface-raised);
+  color: var(--ew-text);
+  border-color: var(--ew-border);
+  box-shadow: inset 0 -2px 0 0 var(--ew-primary);
+}
+
+.ew-taskbar-spacer { flex: 1; }
+
+.ew-tray {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-3);
+  padding: 0 var(--ew-space-3);
+  height: 32px;
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  letter-spacing: var(--ew-track-wider);
+  color: var(--ew-text-muted);
+}
+.ew-tray-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ew-space-1);
+  padding: 0 var(--ew-space-2);
+  height: 24px;
+  border-radius: var(--ew-radius-sm);
+  cursor: pointer;
+  transition: background var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-tray-item:hover { background: var(--ew-surface-raised); color: var(--ew-text); }
+.ew-tray-clock {
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-wider);
+  color: var(--ew-text);
+  padding: 0 var(--ew-space-3);
+}
+
+[data-skin="terminal"] .ew-taskbar { background: var(--ew-bg); border-top-width: 2px; }
+[data-skin="terminal"] .ew-taskitem--active { box-shadow: inset 0 0 0 1px var(--ew-primary); border-radius: 0; }
+[data-skin="classic"] .ew-taskbar-start { border-radius: 0; clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
+
+/* ─────────────────────────────────────────
+   7. MODAL / DIALOG
+   ───────────────────────────────────────── */
+
+.ew-scrim {
+  position: fixed; inset: 0;
+  background: color-mix(in oklab, var(--ew-bg) 70%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  z-index: var(--ew-z-modal);
+  padding: var(--ew-space-8);
+}
+.ew-dialog {
+  background: var(--ew-surface);
+  border: 1px solid var(--ew-border-strong);
+  border-radius: var(--ew-radius-lg);
+  box-shadow: var(--ew-shadow-dialog);
+  max-width: 480px;
+  width: 100%;
+  overflow: hidden;
+}
+.ew-dialog-head {
+  padding: var(--ew-space-5) var(--ew-space-5) 0;
+}
+.ew-dialog-title {
+  font-family: var(--ew-font-display);
+  font-size: var(--ew-text-xl);
+  font-weight: var(--ew-font-weight-display);
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  margin-bottom: var(--ew-space-1);
+}
+.ew-dialog-body {
+  padding: var(--ew-space-4) var(--ew-space-5);
+  color: var(--ew-text-muted);
+  font-size: var(--ew-text-sm);
+  line-height: var(--ew-leading-normal);
+}
+.ew-dialog-foot {
+  display: flex;
+  gap: var(--ew-space-2);
+  justify-content: flex-end;
+  padding: var(--ew-space-4) var(--ew-space-5);
+  background: var(--ew-surface-sunken);
+  border-top: 1px solid var(--ew-border);
+}
+
+[data-skin="classic"] .ew-dialog {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+}
+[data-skin="terminal"] .ew-dialog { border-radius: 0; border-width: 2px; }
+
+/* ─────────────────────────────────────────
+   8. TABLE
+   ───────────────────────────────────────── */
+
+.ew-table { width: 100%; border-collapse: collapse; font-size: var(--ew-text-sm); }
+.ew-table th,
+.ew-table td {
+  padding: var(--ew-space-2) var(--ew-space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--ew-border);
+  vertical-align: middle;
+}
+.ew-table th {
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  color: var(--ew-text-muted);
+  border-bottom-color: var(--ew-border-strong);
+}
+.ew-table tbody tr:hover { background: var(--ew-primary-soft); }
+.ew-table tbody tr:last-child td { border-bottom: none; }
+.ew-table td.num,
+.ew-table th.num { font-family: var(--ew-font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ─────────────────────────────────────────
+   9. LIST (menu, sidebar, dropdown)
+   ───────────────────────────────────────── */
+
+.ew-list { list-style: none; padding: 0; margin: 0; }
+.ew-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ew-space-3);
+  padding: var(--ew-space-2) var(--ew-space-3);
+  font-size: var(--ew-text-sm);
+  color: var(--ew-text-muted);
+  border-radius: var(--ew-radius);
+  cursor: pointer;
+  transition: background var(--ew-dur-quick) var(--ew-ease-out), color var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-list-item:hover { background: var(--ew-surface-raised); color: var(--ew-text); }
+.ew-list-item--active {
+  background: var(--ew-primary-soft);
+  color: var(--ew-primary);
+}
+.ew-list-item-icon { width: 16px; height: 16px; flex-shrink: 0; color: currentColor; }
+.ew-list-item-meta {
+  margin-left: auto;
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  color: var(--ew-text-faint);
+  letter-spacing: var(--ew-track-wider);
+}
+.ew-list-divider {
+  height: 1px;
+  background: var(--ew-border);
+  margin: var(--ew-space-2) calc(var(--ew-space-3) * -1);
+}
+.ew-list-section-label {
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-widest);
+  text-transform: uppercase;
+  color: var(--ew-text-faint);
+  padding: var(--ew-space-3) var(--ew-space-3) var(--ew-space-1);
+}
+
+/* ─────────────────────────────────────────
+   10. PROGRESS / METER
+   ───────────────────────────────────────── */
+
+.ew-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--ew-surface-sunken);
+  border-radius: var(--ew-radius-full);
+  overflow: hidden;
+}
+.ew-progress-bar {
+  height: 100%;
+  background: var(--ew-primary);
+  border-radius: inherit;
+  transition: width var(--ew-dur-slow) var(--ew-ease-out);
+}
+.ew-progress--indeterminate .ew-progress-bar {
+  width: 40% !important;
+  animation: ew-progress-indet 1.8s var(--ew-ease-in-out) infinite;
+}
+@keyframes ew-progress-indet {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+[data-skin="terminal"] .ew-progress,
+[data-skin="terminal"] .ew-progress-bar { border-radius: 0; }
+
+/* ─────────────────────────────────────────
+   11. TOOLTIP (attribute-driven)
+   ───────────────────────────────────────── */
+
+[data-ew-tip] { position: relative; }
+[data-ew-tip]::after {
+  content: attr(data-ew-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  color: var(--ew-text);
+  background: var(--ew-surface-overlay);
+  border: 1px solid var(--ew-border-strong);
+  padding: var(--ew-space-1) var(--ew-space-2);
+  border-radius: var(--ew-radius-sm);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ew-dur-quick) var(--ew-ease-out), transform var(--ew-dur-quick) var(--ew-ease-out);
+  z-index: var(--ew-z-toast);
+}
+[data-ew-tip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ─────────────────────────────────────────
+   12. TAB BAR
+   ───────────────────────────────────────── */
+
+.ew-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--ew-border);
+}
+.ew-tab {
+  padding: var(--ew-space-2) var(--ew-space-4);
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--ew-track-wider);
+  text-transform: uppercase;
+  color: var(--ew-text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: all var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-tab:hover { color: var(--ew-text); }
+.ew-tab--active {
+  color: var(--ew-primary);
+  border-bottom-color: var(--ew-primary);
+}
+
+/* ─────────────────────────────────────────
+   13. DESKTOP ICON (used on the OS desktop)
+   ───────────────────────────────────────── */
+
+.ew-desktop-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ew-space-2);
+  padding: var(--ew-space-2);
+  width: 88px;
+  border-radius: var(--ew-radius);
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  transition: background var(--ew-dur-quick) var(--ew-ease-out);
+}
+.ew-desktop-icon:hover { background: var(--ew-primary-soft); }
+.ew-desktop-icon--selected { background: var(--ew-primary-soft); outline: 1px solid var(--ew-primary); }
+.ew-desktop-icon-img {
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  background: var(--ew-surface-raised);
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius-md);
+  color: var(--ew-primary);
+}
+.ew-desktop-icon-label {
+  font-size: var(--ew-text-xs);
+  font-weight: var(--ew-font-weight-strong);
+  color: var(--ew-text);
+  line-height: var(--ew-leading-tight);
+  max-width: 100%;
+  word-break: break-word;
+}
+
+/* End of components.css */

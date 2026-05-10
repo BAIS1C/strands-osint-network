@@ -232,6 +232,7 @@ async function refresh() {
   layerManager.refreshAll(data);
   renderBands(data);
   refreshViewIfOpen();
+  if (window._sonPopulateFeeds) window._sonPopulateFeeds(data);
 }
 
 // ─── Layer render functions ──────────────────────────────────────────────
@@ -1190,11 +1191,15 @@ const userOverrides = {                  // remember manual collapse state so au
 
 function setBodyClass(cls, on) {
   document.body.classList.toggle(cls, on);
-  if (cls === 'layers-collapsed' && layersCollapse) {
-    layersCollapse.textContent = on ? '›' : '‹';
+  // Mirror body classes to data attributes for EWDS grid
+  if (cls === 'layers-collapsed') {
+    document.body.setAttribute('data-collapsed-layers', on ? '1' : '0');
+    if (layersCollapse) layersCollapse.textContent = on ? '›' : '‹';
   }
-  if (cls === 'chat-collapsed' && chatCollapse) {
-    chatCollapse.textContent = on ? '‹' : '›';
+  if (cls === 'chat-collapsed') {
+    document.body.setAttribute('data-collapsed-feeds', on ? '1' : '0');
+    const fc = document.getElementById('feeds-collapse');
+    if (fc) fc.textContent = on ? '‹' : '›';
   }
 }
 
@@ -1252,12 +1257,12 @@ function wireHoverExpand(el, cls, key) {
 }
 
 const layersEl  = document.getElementById('layers');
-const chatEl    = document.getElementById('chat');
+const feedsEl   = document.getElementById('feeds');
 const bandTopEl = document.getElementById('band-top');
 const bandBotEl = document.getElementById('band-bot');
 
 wireHoverExpand(layersEl,  'layers-collapsed', 'layers');
-wireHoverExpand(chatEl,    'chat-collapsed',   'chat');
+wireHoverExpand(feedsEl,   'chat-collapsed',   'chat');   // key stays 'chat' for userOverrides compat
 wireHoverExpand(bandTopEl, 'bands-folded',     'bands');
 wireHoverExpand(bandBotEl, 'bands-folded',     'bands');
 
@@ -1667,6 +1672,18 @@ function wireFeedInteractions(viewId) {
   });
 }
 
+// Feed rail CCTV fly-to event (dispatched from worldview.html chrome script)
+window.addEventListener('son-cctv-fly', (e) => {
+  const { camId, lat, lon } = e.detail || {};
+  if (typeof lat !== 'number' || typeof lon !== 'number') return;
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 400_000),
+    duration: 1.4,
+  });
+  const cam = (state.data?.cctv?.cameras || []).find(c => c.id === camId);
+  if (cam) showInspector({ meta: { ...cam, kind: 'cctv' } });
+});
+
 document.querySelectorAll('.dock-icon').forEach(el => {
   el.addEventListener('click', () => {
     const view = el.dataset.view;
@@ -1725,6 +1742,7 @@ try {
         layerManager.refreshAll(msg.data);
         renderBands(msg.data);
         refreshViewIfOpen();
+        if (window._sonPopulateFeeds) window._sonPopulateFeeds(msg.data);
       } else if (msg.type === 'sweep_trigger') {
         // PULL LIVE / PULL REGION feedback — flag the expected payload
         const status = document.getElementById('status');
@@ -1734,6 +1752,7 @@ try {
         updatePosture(msg.data);
         layerManager.refreshAll(msg.data);
         renderBands(msg.data);
+        if (window._sonPopulateFeeds) window._sonPopulateFeeds(msg.data);
       }
     } catch {}
   });

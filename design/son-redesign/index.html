@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en" data-skin="terminal" data-mode="dark">
+<head>
+<meta charset="utf-8"/>
+<title>S.O.N — Strands OSINT Network</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="everywear/tokens.css"/>
+<link rel="stylesheet" href="everywear/components.css"/>
+<link rel="stylesheet" href="everywear/icons.css"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body class="ew">
+
+<div id="app"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "skin": "terminal",
+  "mode": "light",
+  "density": "compact",
+  "screen": "alerts"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [screen, setScreen] = React.useState(tweaks.screen || 'worldview');
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-skin', tweaks.skin);
+    document.documentElement.setAttribute('data-mode', tweaks.mode);
+    document.documentElement.setAttribute('data-density', tweaks.density);
+  }, [tweaks.skin, tweaks.mode, tweaks.density]);
+
+  React.useEffect(() => { if (tweaks.screen && tweaks.screen !== screen) setScreen(tweaks.screen); }, [tweaks.screen]);
+
+  const tabs = [
+    { id:'worldview',   label:'Worldview',   ico:'globe', dot:true },
+    { id:'consigliere', label:'Consigliere', ico:'chat',  dot:true },
+    { id:'inspector',   label:'Inspector',   ico:'feed' },
+    { id:'alerts',      label:'Alerts',      ico:'bell',  badge:'2' },
+    { id:'settings',    label:'Settings',    ico:'settings' },
+    { id:'loading',     label:'Boot',        ico:'power' },
+  ];
+  const active = tabs.find(t => t.id === screen);
+
+  return (
+    <div className="son-app">
+      {/* Titlebar */}
+      <div className="son-titlebar">
+        <div className="ew-traffic">
+          <span className="ew-traffic-dot"/><span className="ew-traffic-dot"/><span className="ew-traffic-dot"/>
+        </div>
+        <div className="son-titlebar-brand">
+          <Ico name="shield" size={12}/>
+          <span>S.O.N</span>
+          <span style={{color:'var(--ew-text-faint)', letterSpacing:'var(--ew-track-wider)'}}>· strands osint network</span>
+        </div>
+        <div className="son-titlebar-tabs">
+          {tabs.map(t => (
+            <button key={t.id} className={"son-tab" + (screen===t.id ? ' son-tab--active' : '')}
+                    onClick={() => { setScreen(t.id); setTweak('screen', t.id); }}>
+              <Ico name={t.ico} size={11}/>
+              <span>{t.label}</span>
+              {t.dot && <span className="son-tab-dot" style={{color:'var(--ew-success)'}}/>}
+              {t.badge && <span className="ew-badge ew-badge--danger" style={{padding:'0 4px', fontSize:9}}>{t.badge}</span>}
+            </button>
+          ))}
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:8, fontFamily:'var(--ew-font-mono)', fontSize:10, letterSpacing:'var(--ew-track-wider)', textTransform:'uppercase', color:'var(--ew-text-muted)'}}>
+          <span style={{color:'var(--ew-warm)'}}>● DEFCON 3 · 34%</span>
+          <span style={{color:'var(--ew-text-faint)'}}>·</span>
+          <span>v1.4.0</span>
+          <span style={{color:'var(--ew-text-faint)'}}>·</span>
+          <span>@eliehabib</span>
+        </div>
+      </div>
+
+      {/* Command bar */}
+      <div className="son-cmdbar">
+        <span className="son-cmdbar-clock">SAT · 09 MAY 2026 · 02:14:08 UTC</span>
+        <button className="ew-btn ew-btn--sm"><Ico name="search" size={11}/>Search · <kbd style={{padding:'0 4px'}}>⌘K</kbd></button>
+        <button className="ew-btn ew-btn--sm"><Ico name="globe" size={11}/>Region · Global</button>
+        <button className="ew-btn ew-btn--sm"><Ico name="filter" size={11}/>Window · 7d</button>
+        <button className="ew-btn ew-btn--sm"><Ico name="layers2" size={11}/>9 / 13 layers</button>
+        <span style={{flex:1}}/>
+        <span className="ew-badge ew-badge--success"><span className="ew-badge-dot"/>LM Studio · qwen3-32b</span>
+        <span className="ew-badge"><span className="ew-badge-dot"/>27 ok · 3 key · 1 deg · 1 fail</span>
+        <button className="ew-btn ew-btn--icon ew-btn--sm" title="Tweaks"><Ico name="settings" size={11}/></button>
+      </div>
+
+      {/* Screen surface */}
+      <div className="son-surface">
+        {screen === 'worldview'   && <ScreenWorldview tweaks={tweaks} setTweak={setTweak}/>}
+        {screen === 'consigliere' && <ScreenConsigliere/>}
+        {screen === 'inspector'   && <ScreenInspector/>}
+        {screen === 'alerts'      && <ScreenAlerts/>}
+        {screen === 'settings'    && <ScreenSettings tweaks={tweaks} setTweak={setTweak}/>}
+        {screen === 'loading'     && <ScreenLoading/>}
+      </div>
+
+      {/* Status bar */}
+      <div className="son-statusbar">
+        <span><Ico name="dot" size={10}/> {active?.label}</span>
+        <span style={{color:'var(--ew-text-faint)'}}>|</span>
+        <span>SWEEP t-08m32s</span>
+        <span style={{color:'var(--ew-text-faint)'}}>|</span>
+        <span>UPLINK ◤ 18 OK</span>
+        <span style={{flex:1}}/>
+        <span>SKIN:{tweaks.skin.toUpperCase()}</span>
+        <span>·</span>
+        <span>MODE:{tweaks.mode.toUpperCase()}</span>
+        <span>·</span>
+        <span>DENS:{tweaks.density.toUpperCase()}</span>
+        <span style={{color:'var(--ew-primary)'}}>READY</span>
+      </div>
+
+      {/* Tweaks panel */}
+      <TweaksPanel title="S.O.N · Tweaks">
+        <TweakSection title="Theme">
+          <TweakRadio label="Skin" value={tweaks.skin} onChange={v=>setTweak('skin', v)}
+                      options={[{value:'terminal',label:'Terminal'},{value:'classic',label:'Classic'},{value:'refined',label:'Refined'}]}/>
+          <TweakRadio label="Mode" value={tweaks.mode} onChange={v=>setTweak('mode', v)}
+                      options={[{value:'dark',label:'Dark'},{value:'light',label:'Light'}]}/>
+          <TweakRadio label="Density" value={tweaks.density} onChange={v=>setTweak('density', v)}
+                      options={[{value:'compact',label:'Compact'},{value:'default',label:'Default'},{value:'roomy',label:'Roomy'}]}/>
+        </TweakSection>
+        <TweakSection title="Screen">
+          <TweakSelect label="Active screen" value={tweaks.screen} onChange={v=>{setTweak('screen', v); setScreen(v);}}
+            options={tabs.map(t=>({value:t.id, label:t.label}))}/>
+        </TweakSection>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(<App/>);
+</script>
+
+</body>
+</html>
