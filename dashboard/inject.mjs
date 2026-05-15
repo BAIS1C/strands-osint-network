@@ -168,6 +168,15 @@ async function fetchRSS(url, source) {
   }
 }
 
+async function fetchFeedEntry(urlOrUrls, source) {
+  const urls = Array.isArray(urlOrUrls) ? urlOrUrls : [urlOrUrls];
+  for (const url of urls) {
+    const items = await fetchRSS(url, source);
+    if (items.length) return items;
+  }
+  return [];
+}
+
 function decodeEntities(s) {
   if (!s) return s;
   return s
@@ -189,8 +198,8 @@ export async function fetchAllNews() {
   // World Monitor's 435-feed approach (we curate tighter, they go wide).
   const feeds = [
     // ─── Western Flagships ──────────────────────────────────────────
-    ['http://feeds.bbci.co.uk/news/world/rss.xml', 'BBC'],
-    ['http://feeds.bbci.co.uk/news/business/rss.xml', 'BBC Business'],
+    [['https://feeds.bbci.co.uk/news/world/rss.xml', 'http://feeds.bbci.co.uk/news/world/rss.xml'], 'BBC'],
+    [['https://feeds.bbci.co.uk/news/business/rss.xml', 'http://feeds.bbci.co.uk/news/business/rss.xml'], 'BBC Business'],
     ['https://feeds.bbci.co.uk/news/technology/rss.xml', 'BBC Tech'],
     ['http://feeds.bbci.co.uk/news/science_and_environment/rss.xml', 'BBC Science'],
     ['https://rss.nytimes.com/services/xml/rss/nyt/World.xml', 'NYT'],
@@ -201,17 +210,17 @@ export async function fetchAllNews() {
     ['https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml', 'NYT Europe'],
     ['https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml', 'NYT Tech'],
     ['https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', 'NYT Business'],
-    ['https://www.theguardian.com/world/rss', 'Guardian'],
+    [['https://www.theguardian.com/world/rss', 'https://www.theguardian.com/uk/rss'], 'Guardian'],
     ['https://www.theguardian.com/technology/rss', 'Guardian Tech'],
     ['https://www.theguardian.com/business/rss', 'Guardian Business'],
     ['https://feeds.washingtonpost.com/rss/world', 'WaPo'],
 
     // ─── Wire Services via Google News (site-restricted) ────────────
-    ['https://news.google.com/rss/search?q=when:1d+site:reuters.com&hl=en-US&gl=US&ceid=US:en', 'Reuters'],
-    ['https://news.google.com/rss/search?q=when:1d+site:bloomberg.com&hl=en-US&gl=US&ceid=US:en', 'Bloomberg'],
-    ['https://news.google.com/rss/search?q=when:1d+site:ft.com&hl=en-US&gl=US&ceid=US:en', 'FT'],
+    [['https://news.google.com/rss/search?q=when:1d+site:reuters.com&hl=en-US&gl=US&ceid=US:en', 'https://news.google.com/rss/search?q=when:12h+Reuters+world&hl=en-US&gl=US&ceid=US:en'], 'Reuters'],
+    [['https://news.google.com/rss/search?q=when:1d+site:bloomberg.com&hl=en-US&gl=US&ceid=US:en', 'https://news.google.com/rss/search?q=when:12h+Bloomberg+markets&hl=en-US&gl=US&ceid=US:en'], 'Bloomberg'],
+    [['https://news.google.com/rss/search?q=when:1d+site:ft.com&hl=en-US&gl=US&ceid=US:en', 'https://news.google.com/rss/search?q=when:12h+%22Financial+Times%22&hl=en-US&gl=US&ceid=US:en'], 'FT'],
     ['https://news.google.com/rss/search?q=when:1d+site:wsj.com&hl=en-US&gl=US&ceid=US:en', 'WSJ'],
-    ['https://news.google.com/rss/search?q=when:1d+site:apnews.com&hl=en-US&gl=US&ceid=US:en', 'AP'],
+    [['https://news.google.com/rss/search?q=when:1d+site:apnews.com&hl=en-US&gl=US&ceid=US:en', 'https://news.google.com/rss/search?q=when:12h+%22AP+News%22&hl=en-US&gl=US&ceid=US:en'], 'AP'],
 
     // ─── Middle East / Gulf / Africa ────────────────────────────────
     ['https://www.aljazeera.com/xml/rss/all.xml', 'Al Jazeera'],
@@ -301,7 +310,7 @@ export async function fetchAllNews() {
   ];
 
   const results = await Promise.allSettled(
-    feeds.map(([url, source]) => fetchRSS(url, source))
+    feeds.map(([url, source]) => fetchFeedEntry(url, source))
   );
 
   const allNews = results
@@ -668,6 +677,9 @@ export async function synthesize(data) {
   const health = Object.entries(data.sources).map(([name, src]) => ({
     n: name, err: Boolean(src.error), stale: Boolean(src.stale)
   }));
+  const sourceHealth = data.health || {};
+  const sourceErrors = data.errors || [];
+  const sourceTiming = data.timing || {};
 
   // === ADS-B military aircraft (synthesize source-name ADS-B into stable V2.adsb) ===
   // The hyphen in 'ADS-B' means data.sources['ADS-B'] not data.sources.ADSB,
@@ -912,7 +924,7 @@ export async function synthesize(data) {
     nuke, nukeSignals,
     sdr: { total: sdrNet.totalReceivers || 0, online: sdrNet.online || 0, zones: sdrZones },
     tg: { posts: tgData.totalPosts || 0, urgent: tgUrgent, topPosts: tgTop },
-    who, fred, energy, bls, treasury, gscpi, defense, noaa, epa, acled, gdelt, space, health, news,
+    who, fred, energy, bls, treasury, gscpi, defense, noaa, epa, acled, gdelt, space, health, sourceHealth, sourceErrors, sourceTiming, news,
     adsb,    // MIL layer: militaryAircraft array — previously orphaned by ADS-B source-name hyphen
     opensky, // AIR layer: raw state vectors for civilian flight rendering
     social: { ...social, items: socialItems }, // posts (legacy) + items (stable)

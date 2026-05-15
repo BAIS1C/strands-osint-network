@@ -49,13 +49,23 @@ body[data-collapsed-feeds="1"]  { --col-feeds: 36px; }
 /* Collapsed rail styling */
 body[data-collapsed-layers="1"] #layers .layers-body,
 body[data-collapsed-layers="1"] #layers .layers-head .t,
-body[data-collapsed-layers="1"] #layers .layers-head .s { display: none; }
+body[data-collapsed-layers="1"] #layers .layers-head .s {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-10px);
+}
 body[data-collapsed-layers="1"] #layers .layers-head { padding: 8px 4px; writing-mode: vertical-rl; transform: rotate(180deg); }
 body[data-collapsed-layers="1"] #layers { align-items: center; }
 
 body[data-collapsed-feeds="1"] #feeds .son-rail-body,
 body[data-collapsed-feeds="1"] #feeds .son-rail-tabs,
-body[data-collapsed-feeds="1"] #feeds .son-rail-head span:not(.collapse-btn) { display: none; }
+body[data-collapsed-feeds="1"] #feeds .son-rail-head span:not(.collapse-btn) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(10px);
+}
 body[data-collapsed-feeds="1"] #feeds .son-rail-head { writing-mode: vertical-rl; transform: rotate(180deg); height: 100%; padding: var(--ew-space-3) var(--ew-space-1); }
 
 .collapse-btn {
@@ -77,6 +87,14 @@ body[data-collapsed-feeds="1"] #feeds .son-rail-head { writing-mode: vertical-rl
 #son-statusbar { grid-area: statusbar; }
 
 /* Sidebar scrollability */
+#layers .layers-body,
+#layers .layers-head .t,
+#layers .layers-head .s,
+#feeds .son-rail-body,
+#feeds .son-rail-tabs,
+#feeds .son-rail-head span:not(.collapse-btn) {
+  transition: opacity 160ms ease, transform 220ms ease, visibility 220ms ease;
+}
 #layers .layers-body { min-height: 0; overflow-y: auto; overflow-x: hidden; }
 #feeds .son-rail-body { min-height: 0; overflow-y: auto; overflow-x: hidden; }
 #layers .layers-body::-webkit-scrollbar,
@@ -837,9 +855,32 @@ body.bands-folded #map .band-col-body { display: none; }
   background: var(--ew-surface-sunken); border: 1px solid var(--ew-border);
   color: var(--ew-text-faint); font-family: var(--ew-font-mono);
   font-size: var(--ew-text-xs); letter-spacing: var(--ew-track-wider);
-  cursor: pointer; min-width: 160px;
+  min-width: 220px;
 }
 .son-cmd-search:hover { border-color: var(--ew-border-strong); }
+.son-cmd-search:focus-within { border-color: var(--ew-primary); box-shadow: 0 0 0 1px color-mix(in oklab, var(--ew-primary) 35%, transparent); }
+.son-cmd-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--ew-text);
+  font-family: var(--ew-font-mono);
+  font-size: var(--ew-text-xs);
+  letter-spacing: 0.08em;
+}
+.son-cmd-search input::placeholder { color: var(--ew-text-faint); }
+.son-cmd-search button {
+  border: 0;
+  background: transparent;
+  color: var(--ew-primary);
+  font-family: var(--ew-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  padding: 0;
+}
 .son-cmd-search kbd {
   font-family: var(--ew-font-mono); font-size: 10px;
   padding: 1px 4px; background: var(--ew-surface-raised);
@@ -1230,10 +1271,11 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
 <!-- ============ COMMAND BAR ============ -->
 <div id="son-cmdbar">
   <div class="son-cmd-clock" id="meta-clock">—</div>
-  <div class="son-cmd-search" title="Search (Ctrl+K)">
-    Search...
+  <form class="son-cmd-search" id="cmd-search-form" title="Search (Ctrl+K)">
+    <input id="cmd-search-input" type="text" placeholder="Search location, city, region..." autocomplete="off" />
+    <button type="submit">GO</button>
     <kbd>^K</kbd>
-  </div>
+  </form>
   <div class="son-cmd-spacer"></div>
   <div class="son-cmd-badge" id="cmd-layers-count" title="Active layers">
     <span class="dot" style="background:var(--ew-success);box-shadow:0 0 6px var(--ew-success)"></span>
@@ -1360,14 +1402,14 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
     </div>
     <div class="band-col" data-band="x">
       <div class="band-col-head">
-        <span class="bc-t">X.com (Twitter)</span>
+        <span class="bc-t">Local Context</span>
         <span><span class="bc-n" id="bc-x-n">0</span> <span class="bc-caret">▾</span></span>
       </div>
       <div class="band-col-body" id="band-x"></div>
     </div>
     <div class="band-col" data-band="bsky">
       <div class="band-col-head">
-        <span class="bc-t">Bluesky</span>
+        <span class="bc-t">Source Health</span>
         <span><span class="bc-n" id="bc-bsky-n">0</span> <span class="bc-caret">▾</span></span>
       </div>
       <div class="band-col-body" id="band-bsky"></div>
@@ -1397,6 +1439,7 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
 
     <div class="map-overlay map-top-left">
       <button class="btn btn-ico" id="btn-home" title="Reset view">⌂</button>
+      <button class="btn" id="btn-locate" title="Return to operator location">MY LOC</button>
       <button class="btn btn-ico" id="btn-fullscreen" title="Toggle fullscreen (F11 equivalent)">⛶</button>
       <div class="mode-pill" id="mode-pill" title="Switch projection">
         <span class="mp-opt on" data-mode="3d">3D</span>
@@ -1687,28 +1730,6 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
 
   // Clock is managed by app.js (SGT format, writes to #meta-clock)
 
-  // --- Layers panel: column collapse ---
-  const layersCol = document.getElementById('layers-collapse');
-  if (layersCol) {
-    layersCol.addEventListener('click', () => {
-      const b = document.body;
-      const collapsed = b.getAttribute('data-collapsed-layers') === '1';
-      b.setAttribute('data-collapsed-layers', collapsed ? '0' : '1');
-      layersCol.textContent = collapsed ? '‹' : '›';
-    });
-  }
-
-  // --- Feed rail: column collapse ---
-  const feedsCol = document.getElementById('feeds-collapse');
-  if (feedsCol) {
-    feedsCol.addEventListener('click', () => {
-      const b = document.body;
-      const collapsed = b.getAttribute('data-collapsed-feeds') === '1';
-      b.setAttribute('data-collapsed-feeds', collapsed ? '0' : '1');
-      feedsCol.textContent = collapsed ? '›' : '‹';
-    });
-  }
-
   // --- Feed rail: section collapse ---
   document.querySelectorAll('.son-rail-section .collapse-btn[data-section]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1790,8 +1811,13 @@ body[data-active-screen="settings"]  .son-screen-stub[data-for="settings"] {
       } else {
         cctvGrid.innerHTML = cams.slice(0, 24).map(c => {
           const critical = c.critical ? ' critical' : '';
+          const thumb = c.thumbnailUrl || c.thumbnail || '';
           return '<div class="son-cctv-cell'+critical+'" data-cam="'+c.id+'" data-lat="'+(c.lat||0)+'" data-lon="'+(c.lon||0)+'">' +
-            '<div class="son-cctv-thumb">CAM</div>' +
+            '<div class="son-cctv-thumb">' +
+              (thumb
+                ? '<img src="'+thumb+'" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent=\'LIVE\'">'
+                : 'LIVE') +
+            '</div>' +
             '<div class="son-cctv-label">' + (c.name || c.id) + '</div>' +
           '</div>';
         }).join('');

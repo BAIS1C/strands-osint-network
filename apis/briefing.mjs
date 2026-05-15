@@ -34,11 +34,9 @@ import { briefing as comtrade } from './sources/comtrade.mjs';
 import { briefing as noaa } from './sources/noaa.mjs';
 import { briefing as epa } from './sources/epa.mjs';
 import { briefing as patents } from './sources/patents.mjs';
-import { briefing as bluesky } from './sources/bluesky.mjs';
 import { briefing as reddit } from './sources/reddit.mjs';
 import { briefing as telegram } from './sources/telegram.mjs';
 import { briefing as kiwisdr } from './sources/kiwisdr.mjs';
-import { briefing as nitter } from './sources/nitter.mjs';
 import { briefing as cctv } from './sources/cctv.mjs';
 import { briefing as newsLive } from './sources/news_live.mjs';
 

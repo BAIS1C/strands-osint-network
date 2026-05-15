@@ -141,11 +141,161 @@ const state = {
   },
   viewer,
   focus: null,          // current focused region
+  local: null,          // operator browser geolocation
+  runtimeHealth: null,  // /api/health snapshot for provider labels
 };
 
 // Make state globally reachable for chat tool handlers + debugging.
 // Preserve shaderPresets / tileset already attached above.
 window.son = Object.assign(window.son || {}, { viewer, state, Cesium });
+
+let operatorEntity = null;
+let operatorFixRequested = false;
+let operatorFixApplied = false;
+const geocoderService = new Cesium.OpenStreetMapNominatimGeocoderService();
+
+function sourceGlyph(source, fallback = 'RSS') {
+  const src = String(source || '').trim();
+  if (!src) return fallback;
+  const words = src
+    .replace(/[^A-Za-z0-9 ]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) return fallback;
+  if (words.length === 1) return words[0].substring(0, 3).toUpperCase();
+  return words.slice(0, 2).map(w => w[0]).join('').substring(0, 3).toUpperCase();
+}
+
+function distanceKm(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function flyToLocation(lat, lon, height = 1_200_000, duration = 1.6) {
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+    duration,
+  });
+}
+
+function updateOperatorEntity() {
+  if (!state.local) return;
+  if (operatorEntity) {
+    try { viewer.entities.remove(operatorEntity); } catch {}
+    operatorEntity = null;
+  }
+  operatorEntity = viewer.entities.add({
+    id: 'operator-fix',
+    position: Cesium.Cartesian3.fromDegrees(state.local.lon, state.local.lat, 0),
+    point: {
+      pixelSize: 10,
+      color: Cesium.Color.fromCssColorString('#64F0C8'),
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+    label: {
+      text: 'YOU',
+      font: '600 10px "IBM Plex Mono"',
+      fillColor: Cesium.Color.fromCssColorString('#64F0C8'),
+      showBackground: true,
+      backgroundColor: Cesium.Color.fromCssColorString('#081513').withAlpha(0.82),
+      backgroundPadding: new Cesium.Cartesian2(6, 3),
+      pixelOffset: new Cesium.Cartesian2(12, -6),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+  operatorEntity._cruxMeta = { kind: 'operator-fix', ...state.local };
+  operatorEntity._cruxLayer = 'operator-fix';
+}
+
+function requestOperatorLocation() {
+  if (operatorFixRequested || !navigator.geolocation) return;
+  operatorFixRequested = true;
+  navigator.geolocation.getCurrentPosition((pos) => {
+    operatorFixRequested = false;
+    state.local = {
+      lat: pos.coords.latitude,
+      lon: pos.coords.longitude,
+      accuracyM: pos.coords.accuracy,
+      updatedAt: new Date().toISOString(),
+      source: 'browser-geolocation',
+    };
+    window.son.local = state.local;
+    updateOperatorEntity();
+    if (!operatorFixApplied) {
+      operatorFixApplied = true;
+      flyToLocation(state.local.lat, state.local.lon, 1_800_000, 1.8);
+    }
+    if (state.data) renderBands(state.data);
+  }, (err) => {
+    operatorFixRequested = false;
+    console.warn('[worldview] operator geolocation unavailable:', err?.message || err);
+  }, {
+    enableHighAccuracy: true,
+    timeout: 8000,
+    maximumAge: 120000,
+  });
+}
+
+async function geocodeAndFly(query) {
+  const q = String(query || '').trim();
+  if (!q) return false;
+  const normalized = q.toLowerCase();
+  if (normalized === 'me' || normalized === 'my location' || normalized === 'current location' || normalized === 'here') {
+    if (!state.local) requestOperatorLocation();
+    if (state.local) {
+      flyToLocation(state.local.lat, state.local.lon, 900_000, 1.4);
+      state.focus = 'local';
+      return true;
+    }
+    return false;
+  }
+
+  try {
+    const results = await geocoderService.geocode(q);
+    const top = Array.isArray(results) ? results[0] : null;
+    if (!top) return false;
+    if (top.destination) {
+      viewer.camera.flyTo({
+        destination: top.destination,
+        duration: 1.8,
+      });
+      state.focus = q;
+      return true;
+    }
+  } catch (e) {
+    console.warn('[worldview] geocode failed:', e);
+  }
+  return false;
+}
+
+async function pollRuntimeHealth() {
+  try {
+    const res = await fetch('/api/health', { cache: 'no-store' });
+    if (!res.ok) return;
+    const health = await res.json();
+    state.runtimeHealth = health;
+    const provider = String(health.llmProvider || 'DISABLED').toUpperCase();
+    const modelText = health.llmReachable === false
+      ? `${provider} OFFLINE`
+      : provider;
+    const sigModel = document.getElementById('sig-model');
+    const metaModel = document.getElementById('meta-model');
+    const sigPeers = document.getElementById('sig-peers');
+    if (sigModel) sigModel.textContent = modelText;
+    if (metaModel) metaModel.textContent = provider;
+    if (sigPeers) sigPeers.textContent = health.sweepInProgress ? 'SWEEPING' : 'LOCAL';
+    if (state.data) renderBands(state.data);
+  } catch (e) {
+    console.warn('[worldview] /api/health failed:', e);
+  }
+}
 
 // ─── Layer manager ───────────────────────────────────────────────────────
 
@@ -185,10 +335,6 @@ layerManager.register({
 layerManager.register({
   id: 'news', label: 'News Events', sub: 'GDELT · GEOTAGGED', glyph: 'RSS', on: true,
   renderFromSweep: renderNews,
-});
-layerManager.register({
-  id: 'social', label: 'Social Signals', sub: 'BLUESKY · X · GEOTAGGED', glyph: 'SOC', on: true,
-  renderFromSweep: renderSocial,
 });
 layerManager.register({
   id: 'gpsjam', label: 'GPS Jamming', sub: 'GPSJAM · 24H', glyph: 'GPS', critical: true,
@@ -449,33 +595,35 @@ function renderNews(layer, data) {
   for (const n of items.slice(0, 400)) {
     if (typeof n.lat !== 'number' || typeof n.lon !== 'number') continue;
     const urgent = !!n.urgent;
-    // Latin 3-letter label instead of a bare dot so each marker carries
-    // semantic weight at a glance. Urgent items get URG in amber;
-    // standard items use RSS in pale cyan.
-    const glyph = urgent ? 'URG' : 'RSS';
+    // Use source-aware glyphs instead of a generic RSS stamp so operator can
+    // visually identify networks at a glance. Urgent items still force URG.
+    const glyph = urgent ? 'URG' : sourceGlyph(n.source, 'RSS');
     const color = urgent ? '#FFB84C' : '#81D4FA';
     layer.addEntity({
       id: `news-${n.id || n.url || `${n.lat}-${n.lon}-${n.headline?.substring(0, 24)}`}`,
       position: Cesium.Cartesian3.fromDegrees(n.lon, n.lat, 0),
       point: {
-        pixelSize: urgent ? 6 : 3,
+        pixelSize: urgent ? 8 : 5,
         color: Cesium.Color.fromCssColorString(color).withAlpha(0.95),
         outlineColor: Cesium.Color.fromCssColorString('#000000').withAlpha(0.8),
-        outlineWidth: 1,
+        outlineWidth: 1.5,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
         text: glyph,
-        font: `${urgent ? 600 : 500} ${urgent ? 11 : 9.5}px "IBM Plex Mono", monospace`,
+        font: `${urgent ? 700 : 600} ${urgent ? 14 : 12.5}px "IBM Plex Mono", monospace`,
         fillColor: Cesium.Color.fromCssColorString(color),
         outlineColor: Cesium.Color.BLACK,
         outlineWidth: 3,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         showBackground: true,
-        backgroundColor: Cesium.Color.fromCssColorString('#000000').withAlpha(0.55),
-        backgroundPadding: new Cesium.Cartesian2(4, 2),
-        pixelOffset: new Cesium.Cartesian2(8, -2),
+        backgroundColor: Cesium.Color.fromCssColorString('#000000').withAlpha(0.72),
+        backgroundPadding: new Cesium.Cartesian2(6, 3),
+        pixelOffset: new Cesium.Cartesian2(11, -3),
         verticalOrigin: Cesium.VerticalOrigin.CENTER,
         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 30_000_000),
+        scaleByDistance: new Cesium.NearFarScalar(600_000, 1.15, 24_000_000, 0.78),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       meta: { kind: 'news', ...n },
     });
@@ -710,6 +858,14 @@ function updatePosture(d) {
 
   document.getElementById('sig-sources').textContent = `${d.meta?.sourcesOk || 0} SOURCES`;
   document.getElementById('meta-sources').textContent = `${d.meta?.sourcesOk || 0}/${d.meta?.sourcesQueried || 0} SRC`;
+  if (state.runtimeHealth) {
+    const provider = String(state.runtimeHealth.llmProvider || 'DISABLED').toUpperCase();
+    const modelText = state.runtimeHealth.llmReachable === false ? `${provider} OFFLINE` : provider;
+    const sigModel = document.getElementById('sig-model');
+    const metaModel = document.getElementById('meta-model');
+    if (sigModel) sigModel.textContent = modelText;
+    if (metaModel) metaModel.textContent = provider;
+  }
 
   const statusEl = document.getElementById('status');
   if (d.delta?.summary?.criticalChanges > 0) {
@@ -787,28 +943,66 @@ function renderBands(d) {
   setBand('band-news', newsItems.map(bandFeedItem).join(''));
   const nN = document.getElementById('bc-news-n'); if (nN) nN.textContent = String(newsItems.length);
 
-  // X / Twitter — adapter retired (Nitter mirrors all dead as of 2026-04).
-  // Bot-scraper path in backlog. Show honest offline state, not empty "no data".
-  const xItems = (d.social?.items || []).filter(i => {
-    const s = (i.source || i.platform || '').toLowerCase();
-    return s === 'x' || s === 'twitter' || s === 'nitter';
-  }).slice(0, 25);
-  const xHtml = xItems.length
-    ? xItems.map(bandFeedItem).join('')
-    : '<div class="u-muted" style="font-size:10px;padding:6px;line-height:1.4">Source retired: Nitter mirrors offline since 2026-04.<br>Bot-scraper path pending — see LAYER_AUDIT doc.</div>';
-  setBand('band-x', xHtml);
-  const xN = document.getElementById('bc-x-n'); if (xN) xN.textContent = String(xItems.length || '—');
+  // LOCAL CONTEXT — geolocate the operator via browser/OS location services and
+  // show what is happening nearest to that fix.
+  let localItems = [];
+  let localHtml = '<div class="u-muted" style="font-size:10px;padding:6px;line-height:1.4">Local geolocation not granted yet. Use the ◎ button and allow browser location access to anchor the map around the operator.</div>';
+  if (state.local) {
+    const nearbyNews = (d.newsFeed || []).filter(n =>
+      typeof n.lat === 'number' &&
+      typeof n.lon === 'number' &&
+      distanceKm(state.local.lat, state.local.lon, n.lat, n.lon) <= 400
+    ).slice(0, 4);
+    const nearbyAlerts = (d.alerts?.list || []).filter(a =>
+      typeof a.lat === 'number' &&
+      typeof a.lon === 'number' &&
+      distanceKm(state.local.lat, state.local.lon, a.lat, a.lon) <= 500
+    ).slice(0, 4);
+    const nearbyCams = (d.cctv?.cameras || []).filter(c =>
+      typeof c.lat === 'number' &&
+      typeof c.lon === 'number' &&
+      distanceKm(state.local.lat, state.local.lon, c.lat, c.lon) <= 500
+    );
+    localItems = [
+      ...nearbyNews,
+      ...nearbyAlerts.map(a => ({ ...a, title: a.title || a.message, source: a.source || 'ALERT' })),
+    ];
+    const coordRows = `
+      <div class="kv"><span class="k">Lat</span><span class="v">${state.local.lat.toFixed(4)}</span></div>
+      <div class="kv"><span class="k">Lon</span><span class="v">${state.local.lon.toFixed(4)}</span></div>
+      <div class="kv"><span class="k">Accuracy</span><span class="v">${Math.round((state.local.accuracyM || 0) / 10) * 10} m</span></div>
+      <div class="kv"><span class="k">Nearby News</span><span class="v">${nearbyNews.length}</span></div>
+      <div class="kv"><span class="k">Nearby Alerts</span><span class="v">${nearbyAlerts.length}</span></div>
+      <div class="kv"><span class="k">Nearby Cams</span><span class="v">${nearbyCams.length}</span></div>`;
+    localHtml = coordRows + (localItems.length
+      ? localItems.slice(0, 4).map(bandFeedItem).join('')
+      : '<div class="u-muted" style="font-size:10px;padding:6px;line-height:1.4">No geotagged sweep items within 400-500 km this cycle. Use Pull Region once the map is framed locally.</div>');
+  }
+  setBand('band-x', localHtml);
+  const xN = document.getElementById('bc-x-n'); if (xN) xN.textContent = String(localItems.length || (state.local ? 0 : '—'));
 
-  // Bluesky — adapter returns 403 since 2026-04 API change. Retired until header fix.
-  const bskyItems = (d.social?.items || []).filter(i => {
-    const s = (i.source || i.platform || '').toLowerCase();
-    return s === 'bluesky' || s === 'bsky';
-  }).slice(0, 25);
-  const bskyHtml = bskyItems.length
-    ? bskyItems.map(bandFeedItem).join('')
-    : '<div class="u-muted" style="font-size:10px;padding:6px;line-height:1.4">Source retired: public.api.bsky.app returns 403 since 2026-04.<br>Header / endpoint fix pending.</div>';
-  setBand('band-bsky', bskyHtml);
-  const bN = document.getElementById('bc-bsky-n'); if (bN) bN.textContent = String(bskyItems.length || '—');
+  // SOURCE HEALTH — honest source, key, and timing state from the latest sweep.
+  const healthEntries = Object.entries(d.sourceHealth || {});
+  const degraded = healthEntries.filter(([, status]) => status !== 'ok');
+  const timingRows = Object.entries(d.sourceTiming || {})
+    .sort((a, b) => (b[1]?.ms || 0) - (a[1]?.ms || 0))
+    .slice(0, 6)
+    .map(([name, meta]) => {
+      const health = meta?.health || 'unknown';
+      const cls = health === 'ok' ? 'up' : health === 'key-gated' ? '' : 'down';
+      return `<div class="kv"><span class="k">${escapeHtml(name)}</span><span class="v ${cls}">${health.toUpperCase()} · ${meta?.ms || 0}ms</span></div>`;
+    }).join('');
+  const degradedRows = degraded.slice(0, 8).map(([name, status]) =>
+    `<div class="kv"><span class="k">${escapeHtml(name)}</span><span class="v ${status === 'key-gated' ? '' : 'down'}">${escapeHtml(String(status).toUpperCase())}</span></div>`
+  ).join('');
+  const sourceHtml = `
+    <div class="kv"><span class="k">Healthy</span><span class="v">${d.meta?.sourcesOk || 0}</span></div>
+    <div class="kv"><span class="k">Queried</span><span class="v">${d.meta?.sourcesQueried || 0}</span></div>
+    <div class="kv"><span class="k">Degraded</span><span class="v ${degraded.length ? 'down' : ''}">${degraded.length}</span></div>
+    <div class="kv"><span class="k">Failed</span><span class="v ${(d.meta?.sourcesFailed || 0) ? 'down' : ''}">${d.meta?.sourcesFailed || 0}</span></div>
+    ${degradedRows || timingRows || '<div class="u-muted" style="font-size:10px;padding:6px;line-height:1.4">No source health details available yet.</div>'}`;
+  setBand('band-bsky', sourceHtml);
+  const bN = document.getElementById('bc-bsky-n'); if (bN) bN.textContent = String(degraded.length);
 
   // MARKETS — energy (brent/wti/natgas) + metals (gold/silver) + crypto (btc/eth/sol/avax/rndr/ar)
   // + FRED macro indicators. Reads the real synthesize shape: d.markets.commodities,
@@ -1082,9 +1276,27 @@ document.querySelectorAll('.regions .btn').forEach(el => {
 
 // Home / 2D-3D
 document.getElementById('btn-home').addEventListener('click', () => {
-  viewer.camera.flyHome(1.2);
-  state.focus = null;
+  if (state.local) {
+    flyToLocation(state.local.lat, state.local.lon, 1_800_000, 1.4);
+    state.focus = 'local';
+  } else {
+    viewer.camera.flyHome(1.2);
+    state.focus = null;
+    requestOperatorLocation();
+  }
 });
+
+const locateBtn = document.getElementById('btn-locate');
+if (locateBtn) {
+  locateBtn.addEventListener('click', () => {
+    if (state.local) {
+      flyToLocation(state.local.lat, state.local.lon, 900_000, 1.4);
+      state.focus = 'local';
+      return;
+    }
+    requestOperatorLocation();
+  });
+}
 
 // Fullscreen toggle — whole document goes fullscreen so bands + chat rail stay visible
 const fsBtn = document.getElementById('btn-fullscreen');
@@ -1161,21 +1373,6 @@ document.querySelectorAll('#tl-speed span').forEach(el => {
 // Sidebar collapse
 const layersCollapse = document.getElementById('layers-collapse');
 const chatCollapse = document.getElementById('chat-collapse');
-if (layersCollapse) {
-  layersCollapse.addEventListener('click', () => {
-    document.body.classList.toggle('layers-collapsed');
-    layersCollapse.textContent = document.body.classList.contains('layers-collapsed') ? '›' : '‹';
-    // Force Cesium to resize
-    setTimeout(() => viewer.resize?.(), 240);
-  });
-}
-if (chatCollapse) {
-  chatCollapse.addEventListener('click', () => {
-    document.body.classList.toggle('chat-collapsed');
-    chatCollapse.textContent = document.body.classList.contains('chat-collapsed') ? '‹' : '›';
-    setTimeout(() => viewer.resize?.(), 240);
-  });
-}
 
 // ─── Auto-collapse + hover-expand ─────────────────────────────────────────
 // Sidebars and bands fold when idle, expand on hover. Lets the globe own
@@ -1270,12 +1467,19 @@ wireHoverExpand(bandBotEl, 'bands-folded',     'bands');
 // Click the chevron explicitly → it stays collapsed regardless of mouse hover.
 if (layersCollapse) {
   layersCollapse.addEventListener('click', () => {
-    userOverrides.layers = document.body.classList.contains('layers-collapsed');
+    const next = document.body.getAttribute('data-collapsed-layers') !== '1';
+    setBodyClass('layers-collapsed', next);
+    userOverrides.layers = next;
+    setTimeout(() => viewer.resize?.(), 240);
   });
 }
-if (chatCollapse) {
-  chatCollapse.addEventListener('click', () => {
-    userOverrides.chat = document.body.classList.contains('chat-collapsed');
+const feedsCollapse = document.getElementById('feeds-collapse');
+if (feedsCollapse) {
+  feedsCollapse.addEventListener('click', () => {
+    const next = document.body.getAttribute('data-collapsed-feeds') !== '1';
+    setBodyClass('chat-collapsed', next);
+    userOverrides.chat = next;
+    setTimeout(() => viewer.resize?.(), 240);
   });
 }
 
@@ -1335,8 +1539,8 @@ if (pullRegionBtn) {
         pullRegionBtn.style.background = 'rgba(100,240,200,0.28)';
         setTimeout(() => { pullRegionBtn.style.background = ''; }, 600);
       } else {
-        // Fallback: trigger the standard refresh, don't block user
-        await fetch('/api/brief').catch(() => null);
+        // Fallback: trigger the standard sweep endpoint without bbox.
+        await fetch('/api/sweep', { method: 'POST' }).catch(() => null);
       }
     } finally {
       setTimeout(() => pullRegionBtn.classList.remove('pulling'), 700);
@@ -1603,7 +1807,9 @@ function renderCamView(d) {
     <div class="cam-grid">
       ${list.map(c => `
         <div class="cam-card" data-cam="${escapeHtml(c.id)}" data-lat="${c.lat}" data-lon="${c.lon}">
-          <div class="cam-thumb">CAM</div>
+          <div class="cam-thumb">${(c.thumbnailUrl || c.thumbnail)
+            ? `<img src="${escapeHtml(c.thumbnailUrl || c.thumbnail)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='LIVE'">`
+            : 'LIVE'}</div>
           <div class="cam-meta">
             <div class="cam-name">${escapeHtml(c.name)}</div>
             <div class="cam-region">${escapeHtml(c.category || '')}${c.critical ? ' · CRITICAL' : ''}</div>
@@ -1619,8 +1825,6 @@ function renderCamView(d) {
 const VIEWS = {
   brief:   { title: 'Briefing',       render: renderBriefView,                       feed: false },
   news:    { title: 'News Feed',      render: renderNewsFeedView,                    feed: true  },
-  x:       { title: 'X / Nitter',     render: (d) => renderSocialFeedView(d, 'x'),   feed: true  },
-  bsky:    { title: 'Bluesky',        render: (d) => renderSocialFeedView(d, 'bsky'),feed: true  },
   cam:     { title: 'CCTV Feeds',     render: renderCamView,                         feed: true  },
   markets: { title: 'Markets',        render: renderMktView,                         feed: false },
   sats:    { title: 'Satellites',     render: renderSatView,                         feed: false },
@@ -1729,6 +1933,9 @@ const chat = new ChatPanel({
 
 refresh();
 setInterval(refresh, 60_000); // pull fresh sweep every minute
+requestOperatorLocation();
+pollRuntimeHealth();
+setInterval(pollRuntimeHealth, 15_000);
 
 // SSE for push updates
 try {

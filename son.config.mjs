@@ -30,7 +30,7 @@ export default {
   llm: {
     // Default to lmstudio so the Consigliere pill correctly reports OFFLINE (red)
     // when LM Studio isn't running. Override with LLM_PROVIDER in .env to switch
-    // to anthropic | openai | gemini | codex | openrouter | minimax.
+    // to anthropic | openai | gemini | codex | openrouter | minimax | kasai | kasai-lite.
     provider: process.env.LLM_PROVIDER || 'lmstudio',
     apiKey: process.env.LLM_API_KEY || null,
     model: process.env.LLM_MODEL || null,
